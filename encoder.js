@@ -1,6 +1,5 @@
 /**
  * encoder.js — Tibetan syllable encoder（独立编码器，纯 kind n/r 版）
- * 项目方案: docs/藏文音节编码器项目方案.md
  *
  * 在已有的藏文音节校验器 (tibetan_algorithm.js / tibetan_data.json) 之上，
  * 提供有损于"结构"但无损于"文本"的 token 化：

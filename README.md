@@ -240,8 +240,8 @@ python start_server.py        # or: python -m http.server 8000
 
 > The page fetches `tibetan_data.json` and `ui_texts.json`, so it **must be served over HTTP**.
 > Opening the file directly (`file://`) is blocked by the browser's CORS rules and the suite
-> will report that it cannot load its data. `start_server.py` is a 60-line wrapper around
-> `http.server` that also disables caching and opens the browser for you.
+> will report that it cannot load its data. `start_server.py` is a ~135-line wrapper around
+> `http.server` that also disables caching and can open the browser for you (`--open`).
 
 Rule-table changes are expected to come with test evidence: if the rule table changes, both suites above must still pass, and any newly rejected well-formed unit has to be explained.
 

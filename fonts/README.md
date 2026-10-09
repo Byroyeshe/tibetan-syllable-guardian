@@ -17,4 +17,5 @@ NotoSerifTibetan-Tibetan.woff2
   唯一两条限制：不得把字体**单独**出售；若修改字体，不得继续使用
   “Noto Serif Tibetan” 这个保留字体名。
 
-  要换字体或换子集：见 landing/README-noto-font.md。
+  要换字体或换子集：改 HTML 顶部的 @font-face src 指向新文件即可；
+  同时**必须**把新字体的许可全文放进本目录（OFL 要求随附），并更新本文件与 NOTICE。

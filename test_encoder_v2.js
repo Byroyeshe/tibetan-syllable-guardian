@@ -2,7 +2,7 @@
  * test_encoder_v2.js — encoder（纯 kind n/r 版）回归
  * 运行: node test_encoder_v2.js
  *
- * 语义（见 docs/7槽全量无损编码方案.md）：校验层 native-only；
+ * 语义：校验层 native-only；
  *   kind 'n' = native 音节/截断段（roleChars 序号，逐角色入槽）；
  *   kind 'r' = raw 残串（Tibetan 全字符表，≤7 字/块）——双叠、梵文/转写内容、
  *   无法截断的残串一律 raw 承载。Tibetan 内容不再产生 foreign。
