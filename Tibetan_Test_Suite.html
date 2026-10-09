@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tibetan Syllable Guardian</title>
     <style>
-        /* Tibetan text rendering uses the system font stack below — no bundled font.
-           A local @font-face used to point at Font/monlam.ttf; that file is third-party
-           (GPL-3) and weighs 1.7 MB, so it is deliberately not shipped. To use it anyway,
-           drop monlam.ttf into Font/ and uncomment this block:
+        /* Bundled Tibetan font: Noto Serif Tibetan, SIL Open Font License 1.1 (see fonts/OFL.txt).
+           This is the Tibetan-subset woff2 (156 KB) served by Google Fonts — the full TTF is 2.0 MB.
+           It keeps the OpenType features that matter for stacked syllables (abvs / blws / abvm / blwm /
+           mark / mkmk), so གྲྭ, བསྒྲུབས and friends render correctly.
 
-           @font-face {
-               font-family: 'Monlam';
-               src: url('Font/monlam.ttf') format('truetype');
-               font-display: swap;
-           }
-           then add 'Monlam' to the front of --tibetan-font.
-        */
+           It is a separate work from this code: the OFL-1.1 covers the font, AGPL-3.0 covers the
+           engine, and the font is NOT part of the commercial license. Anyone redistributing this
+           bundle (closed-source included) may do so under the OFL; they just may not sell the font
+           by itself. */
+        @font-face {
+            font-family: 'Noto Serif Tibetan';
+            src: url('fonts/NotoSerifTibetan-Tibetan.woff2') format('woff2');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
         :root {
             --accent: #3b82f6;
             --accent-hover: #2563eb;
@@ -31,7 +35,7 @@
             --valid-bg: #d1fae5;
             --invalid: #991b1b;
             --invalid-bg: #fee2e2;
-            --tibetan-font: 'Noto Sans Tibetan', 'Microsoft Himalaya', 'Jomolhari', 'Tibetan Machine Uni', 'Kailasa', serif;
+            --tibetan-font: 'Noto Serif Tibetan', 'Noto Sans Tibetan', 'Microsoft Himalaya', 'Jomolhari', 'Tibetan Machine Uni', 'Kailasa', serif;
         }
         * { box-sizing: border-box; }
         html, body {
@@ -251,7 +255,7 @@
             padding: 16px;
             height: 360px;
             overflow-y: auto;
-            font-family: 'Noto Sans Tibetan', 'Courier New', 'Fira Code', monospace;
+            font-family: 'Noto Serif Tibetan', 'Courier New', 'Fira Code', monospace;
             font-size: 13.5px;
             line-height: 1.7;
             color: #cbd5e1;

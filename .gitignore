@@ -5,8 +5,8 @@ __pycache__/
 *.log
 
 # 第三方资源：许可未核实或不可再分发，一律不入库
-#   Monlam 字体（公开那份是 GPL-3，强著佐权；且 1.7 MB，与"轻量"冲突）
-#     —— 因此 HTML 已去掉 @font-face，改用系统藏文字体栈（见 HTML 顶部注释，想自己加回来很容易）
+#   ⚠ Font/（monlam.ttf）—— 公开那份是 GPL-3（强著佐权）、1.7 MB，且和本项目的商用授权相冲
+#     因此**不**入库；藏文改用 fonts/ 里的 Noto Serif Tibetan 子集（OFL-1.1，156 KB）
 #   德格版《甘珠尔》语料（来源 github.com/Esukhia/derge-kangyur）
 #   东嘎/词琛词典转换产物（许可未核实）
 Font/
