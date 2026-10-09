@@ -211,7 +211,7 @@ Tibetan_Test_Suite.html   browser test suite: live check, batch audit, generator
 test_encoder.js           round-trip and quality tests (35 assertions)
 test_encoder_v2.js        encoder semantics tests (7 assertions)
 start_server.py           zero-dependency static server (the page needs HTTP — see below)
-fonts/                    Noto Serif Tibetan (Tibetan subset, 156 KB) + its OFL-1.1 license
+fonts/                    Noto Serif Tibetan, wght=700 Tibetan subset (182 KB) + its OFL-1.1 license
 README.md · LICENSE · LICENSE-COMMERCIAL.md · NOTICE
 .gitignore · .gitattributes
 ```
@@ -378,7 +378,7 @@ python start_server.py        # 或：python -m http.server 8000
 # 直接双击打开（file://）会被浏览器的 CORS 规则拦掉 fetch，页面会提示加载数据失败。
 ```
 
-> 本仓库只附带**一个**第三方资源：`fonts/` 里的 Noto Serif Tibetan（藏文子集，156 KB）。
+> 本仓库只附带**一个**第三方资源：`fonts/` 里的 Noto Serif Tibetan（wght=700 藏文子集，182 KB）。
 > 它是 **SIL Open Font License 1.1** 授权的**独立作品** —— OFL 管字体、AGPL-3.0 管引擎，
 > **字体不在本项目商用授权范围内**（OFL 本身就允许随闭源商业软件分发，只禁止把字体单独出售）。
 > 词典与语料一概不附带。

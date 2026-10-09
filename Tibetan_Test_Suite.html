@@ -6,9 +6,14 @@
     <title>Tibetan Syllable Guardian</title>
     <style>
         /* Bundled Tibetan font: Noto Serif Tibetan, SIL Open Font License 1.1 (see fonts/OFL.txt).
-           This is the Tibetan-subset woff2 (156 KB) served by Google Fonts — the full TTF is 2.0 MB.
-           It keeps the OpenType features that matter for stacked syllables (abvs / blws / abvm / blwm /
-           mark / mkmk), so གྲྭ, བསྒྲུབས and friends render correctly.
+           This is the Tibetan-subset woff2 built from the **wght=700** instance (182 KB); the 400
+           instance was noticeably too thin on screen.
+
+           Why `font-weight: 100 900` instead of `700`: the page requests many weights on Tibetan
+           elements (400 / 500 / 600 / 700). If this @font-face declared a single weight, every
+           element not asking for exactly that weight would fall back to a system font — and the
+           boldness would silently disappear in most of the UI. Declaring the full range keeps this
+           face eligible for whatever weight an element asks for.
 
            It is a separate work from this code: the OFL-1.1 covers the font, AGPL-3.0 covers the
            engine, and the font is NOT part of the commercial license. Anyone redistributing this
@@ -16,8 +21,8 @@
            by itself. */
         @font-face {
             font-family: 'Noto Serif Tibetan';
-            src: url('fonts/NotoSerifTibetan-Tibetan.woff2') format('woff2');
-            font-weight: normal;
+            src: url('fonts/NotoSerifTibetan-Bold.woff2') format('woff2');
+            font-weight: 100 900;
             font-style: normal;
             font-display: swap;
         }
