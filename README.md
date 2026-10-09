@@ -7,8 +7,8 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Commercial license available](https://img.shields.io/badge/License-Commercial-orange.svg)](LICENSE-COMMERCIAL.md)
-[![tests](https://github.com/byrocode/tibetan-syllable-guardian/actions/workflows/tests.yml/badge.svg)](https://github.com/byrocode/tibetan-syllable-guardian/actions/workflows/tests.yml)
-[![Latest release](https://img.shields.io/github/v/release/byrocode/tibetan-syllable-guardian)](https://github.com/byrocode/tibetan-syllable-guardian/releases)
+[![tests](https://github.com/sonamzade/tibetan-syllable-guardian/actions/workflows/tests.yml/badge.svg)](https://github.com/sonamzade/tibetan-syllable-guardian/actions/workflows/tests.yml)
+[![Latest release](https://img.shields.io/github/v/release/sonamzade/tibetan-syllable-guardian)](https://github.com/sonamzade/tibetan-syllable-guardian/releases)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](#performance--性能)
 
 **Live demo:** https://note.byrocode.online/ — open and use, no sign-up (desktop Chrome / Edge)
