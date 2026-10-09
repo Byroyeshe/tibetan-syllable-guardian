@@ -35,10 +35,21 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 第三方资源 / Third-party assets
 --------------------------------------------------------------------------
 
-本仓库**不包含**任何第三方词典、字体或语料本体。以下资源仅在工作区本地使用，
-未随本仓库分发，因此不在本项目的授权范围内：
+本仓库只附带**一个**第三方资源：
 
-  · Monlam 字体（monlam.ttf）—— 有独立许可，再分发需另行取得授权
+  · fonts/NotoSerifTibetan-Tibetan.woff2
+      Noto Serif Tibetan（藏文子集），Copyright 2022 The Noto Project Authors
+      上游：https://github.com/notofonts/tibetan
+      许可：SIL Open Font License 1.1（全文见 fonts/OFL.txt）
+
+    这是**独立于本代码的作品**：OFL-1.1 管字体，AGPL-3.0 管引擎。
+    **字体不在本项目的商用授权范围内** —— 它不需要，因为 OFL-1.1 本身就允许
+    随任意软件（含闭源商业软件）再分发。仅两条限制：不得把字体单独出售；
+    若修改字体，不得继续使用 "Noto Serif Tibetan" 这个保留字体名。
+
+以下资源**未随本仓库分发**（仅在工作区本地使用），因此不在本项目授权范围内：
+
+  · Monlam 字体（monlam.ttf）—— 公开版本为 GPL-3（强著佐权），未入库
   · 德格版《甘珠尔》律藏电子文本 —— 来源 github.com/Esukhia/derge-kangyur
     （docs/语料完备性审计报告.md 记录了它的来源、规模与用途）
   · 东嘎藏学大辞典 / 词琛词典转换产物 —— 许可未核实，未入库

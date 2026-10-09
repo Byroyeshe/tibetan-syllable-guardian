@@ -198,7 +198,7 @@ Two clarifications that matter more than the numbers themselves:
 
 ## Repository layout / 仓库结构
 
-Seventeen files. No package manager, no bundler, no test framework — the whole thing is plain ES5-compatible JavaScript plus one HTML page.
+Twenty files. No package manager, no bundler, no test framework — the whole thing is plain ES5-compatible JavaScript plus one HTML page and one bundled font.
 
 ```
 tibetan_algorithm.js      validator: role templates + character compatibility + particle split
@@ -211,13 +211,14 @@ Tibetan_Test_Suite.html   browser test suite: live check, batch audit, generator
 test_encoder.js           round-trip and quality tests (35 assertions)
 test_encoder_v2.js        encoder semantics tests (7 assertions)
 start_server.py           zero-dependency static server (the page needs HTTP — see below)
+fonts/                    Noto Serif Tibetan (Tibetan subset, 156 KB) + its OFL-1.1 license
 README.md · LICENSE · LICENSE-COMMERCIAL.md · NOTICE
 .gitignore · .gitattributes
 ```
 
 > This repository is the **engine only**. Two things deliberately live elsewhere: the writing application built on it (a ProseMirror editor), and a Rust/WebAssembly port of the same rule table used for cross-validation — neither is needed to use this engine.
 >
-> No third-party assets are bundled: no dictionaries, no corpus, and **no font**. Tibetan text renders with the system font stack (`Noto Sans Tibetan`, `Microsoft Himalaya`, `Jomolhari`, …).
+> The only third-party asset shipped is the font. It is **SIL Open Font License 1.1** — a separate work from the code: the OFL covers the font, AGPL-3.0 covers the engine, and the font is **not** part of the commercial license. The OFL already permits redistribution inside closed-source products; it only forbids selling the font by itself. No dictionaries and no corpus are bundled.
 
 ---
 
@@ -377,8 +378,10 @@ python start_server.py        # 或：python -m http.server 8000
 # 直接双击打开（file://）会被浏览器的 CORS 规则拦掉 fetch，页面会提示加载数据失败。
 ```
 
-> 本仓库**不附带任何第三方资源** —— 没有词典、没有语料、**也没有字体**。
-> 藏文用系统字体栈渲染（`Noto Sans Tibetan` / `Microsoft Himalaya` / `Jomolhari` …）。
+> 本仓库只附带**一个**第三方资源：`fonts/` 里的 Noto Serif Tibetan（藏文子集，156 KB）。
+> 它是 **SIL Open Font License 1.1** 授权的**独立作品** —— OFL 管字体、AGPL-3.0 管引擎，
+> **字体不在本项目商用授权范围内**（OFL 本身就允许随闭源商业软件分发，只禁止把字体单独出售）。
+> 词典与语料一概不附带。
 
 ### 实测数字
 
