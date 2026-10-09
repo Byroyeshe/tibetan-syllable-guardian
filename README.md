@@ -27,7 +27,7 @@
 | **Generate** | Generate all well-formed syllables and multi-syllable words from a candidate character set, using the same rule table as the validator. |
 | **Tokenize** | Split running text into syllable units, including the trailing-particle forms (`འི / འུ / འོ / འང / འམ`). |
 
-**Pure JavaScript, zero dependencies, zero build step** — works in Node and in the browser. Open `Tibetan_Test_Suite.html` and it runs; nothing to install, nothing to compile.
+**Pure JavaScript, zero dependencies, zero build step.** The engine runs in Node with nothing to install; the browser test suite is a static page served by any HTTP server (it fetches its rule table, so `file://` will not work).
 
 ---
 
@@ -210,24 +210,37 @@ i18n.js + ui_texts.json    interface strings (Chinese / English / Tibetan)
 Tibetan_Test_Suite.html   browser test suite: live check, batch audit, generator, keypad demo
 test_encoder.js           round-trip and quality tests (35 assertions)
 test_encoder_v2.js        encoder semantics tests (7 assertions)
+start_server.py           zero-dependency static server (the page needs HTTP — see below)
 README.md · LICENSE · LICENSE-COMMERCIAL.md · NOTICE
 .gitignore · .gitattributes
 ```
 
 > This repository is the **engine only**. Two things deliberately live elsewhere: the writing application built on it (a ProseMirror editor), and a Rust/WebAssembly port of the same rule table used for cross-validation — neither is needed to use this engine.
+>
+> No third-party assets are bundled: no dictionaries, no corpus, and **no font**. Tibetan text renders with the system font stack (`Noto Sans Tibetan`, `Microsoft Himalaya`, `Jomolhari`, …).
 
 ---
 
 ## Development / 开发与验证
 
+**Engine (Node — nothing to install):**
+
 ```bash
 node test_encoder.js          # 35 round-trip and quality assertions
 node test_encoder_v2.js       # 7 encoder-semantics assertions
-
-python -m http.server 8000    # any static server works
-# then open http://localhost:8000/Tibetan_Test_Suite.html
-# (or just open Tibetan_Test_Suite.html directly — there is no build step)
 ```
+
+**Browser test suite:**
+
+```bash
+python start_server.py        # or: python -m http.server 8000
+# then open http://localhost:8000/Tibetan_Test_Suite.html
+```
+
+> The page fetches `tibetan_data.json` and `ui_texts.json`, so it **must be served over HTTP**.
+> Opening the file directly (`file://`) is blocked by the browser's CORS rules and the suite
+> will report that it cannot load its data. `start_server.py` is a 60-line wrapper around
+> `http.server` that also disables caching and opens the browser for you.
 
 Rule-table changes are expected to come with test evidence: if the rule table changes, both suites above must still pass, and any newly rejected well-formed unit has to be explained.
 
@@ -357,10 +370,15 @@ alg.splitParticleSyllable(Array.from('དགའི'.normalize('NFD')),
 node test_encoder.js          # 往返与质量套件（35 条断言）
 node test_encoder_v2.js       # 编码器语义（7 条断言）
 
-python -m http.server 8000    # 随手一个静态服务器即可
+python start_server.py        # 或：python -m http.server 8000
 # 然后打开 http://localhost:8000/Tibetan_Test_Suite.html
-# （也可以直接双击打开该 HTML —— 没有构建步骤）
+#
+# 注意：这个页面要 fetch tibetan_data.json 与 ui_texts.json，所以**必须走 HTTP**。
+# 直接双击打开（file://）会被浏览器的 CORS 规则拦掉 fetch，页面会提示加载数据失败。
 ```
+
+> 本仓库**不附带任何第三方资源** —— 没有词典、没有语料、**也没有字体**。
+> 藏文用系统字体栈渲染（`Noto Sans Tibetan` / `Microsoft Himalaya` / `Jomolhari` …）。
 
 ### 实测数字
 
