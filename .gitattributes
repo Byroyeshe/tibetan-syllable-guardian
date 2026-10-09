@@ -1,0 +1,26 @@
+# 统一换行与二进制判定 —— 没有这个文件时，git 会按 core.autocrlf 在检出时改写换行，
+# 对 Rust 源码、golden JSON 与 wasm 产物都是风险（wasm 是二进制，绝不能被改写）。
+# 规则：文本一律以 LF 入库（仓库里所有文件本来就是 LF），二进制显式标记。
+* text=auto eol=lf
+
+*.wasm   binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.pdf    binary
+*.zip    binary
+
+# 明确保证这两类常被 autocrlf 误伤的文本
+*.rs     text eol=lf
+*.json   text eol=lf
+*.js     text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.ps1    text eol=lf
+*.md     text eol=lf

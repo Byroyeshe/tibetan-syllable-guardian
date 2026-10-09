@@ -1,0 +1,47 @@
+Byro Tibetan Syllable Guardian
+藏文音节守护者 —— 藏文音节校验引擎
+
+Copyright (C) 2026 sonamzade <785136829@qq.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------
+许可证 / License
+--------------------------------------------------------------------------
+
+本项目的授权是**双许可**：
+
+  · 开源：GNU Affero General Public License v3.0 —— 全文见 LICENSE
+  · 商用：闭源产品 / 不想开源的对外服务需另行取得商用授权
+          —— 要点、非营利与教育豁免、常见问题见 LICENSE-COMMERCIAL.md
+
+商用咨询 / Commercial licensing: 785136829@qq.com
+
+非营利与教育用途（含高校、寺院、非营利出版、公益服务）免费，
+无需申请，详见 LICENSE-COMMERCIAL.md 第一节。
+
+--------------------------------------------------------------------------
+第三方资源 / Third-party assets
+--------------------------------------------------------------------------
+
+本仓库**不包含**任何第三方词典、字体或语料本体。以下资源仅在工作区本地使用，
+未随本仓库分发，因此不在本项目的授权范围内：
+
+  · Monlam 字体（monlam.ttf）—— 有独立许可，再分发需另行取得授权
+  · 德格版《甘珠尔》律藏电子文本 —— 来源 github.com/Esukhia/derge-kangyur
+    （docs/语料完备性审计报告.md 记录了它的来源、规模与用途）
+  · 东嘎藏学大辞典 / 词琛词典转换产物 —— 许可未核实，未入库
+  · 第三方论文对比实验代码（corpus_audit/tib_news_class/）
+
+如果你要在自己的项目里使用上述资源，请**自行向各自的权利人取得授权**。

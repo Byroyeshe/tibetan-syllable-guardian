@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tibetan Syllable Guardian</title>
+    <style>
+        /* Monlam Tibetan font (local file; font-display: swap keeps the UI usable while it loads) */
+        @font-face {
+            font-family: 'Monlam';
+            src: url('Font/monlam.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        :root {
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --muted: #64748b;
+            --log-bg: #0f172a;
+            --log-line: #1e293b;
+            --valid: #065f46;
+            --valid-bg: #d1fae5;
+            --invalid: #991b1b;
+            --invalid-bg: #fee2e2;
+            --tibetan-font: 'Monlam', 'Noto Sans Tibetan', 'Microsoft Himalaya', 'Jomolhari', 'Tibetan Machine Uni', serif;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            overflow: hidden; /* no whole-page scrolling: the active panel scrolls instead */
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 24px;
+            color: var(--text);
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            height: 100%; /* fixed panel height: fills the viewport, never grows with content */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--card);
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            padding: 28px;
+        }
+        header { position: relative; flex-shrink: 0; }
+        header h1 {
+            margin: 0 0 8px;
+            font-size: 1.9rem;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-right: 150px; /* keep clear of the top-right language switcher */
+        }
+        header h1 .ornament { color: var(--accent); }
+        header h1 .en {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+        }
+        header .tagline {
+            margin: 0 0 6px;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        header .note {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+        /* Language switcher: top-right corner */
+        .lang-switch {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+        .lang-switch select {
+            padding: 5px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.9rem;
+            color: var(--text);
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .lang-switch select:hover, .lang-switch select:focus { border-color: var(--accent); }
+
+        /* In Tibetan UI mode, render all interface text with the Monlam font */
+        html.lang-bo body {
+            font-family: var(--tibetan-font);
+        }
+        .tibetan {
+            font-family: var(--tibetan-font);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .tab {
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--muted);
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab:hover { color: var(--text); background: #f8fafc; }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; background: rgba(59, 130, 246, 0.06); }
+        .panel { display: none; }
+        .panel.active {
+            display: block;
+            flex: 1 1 auto;     /* fixed panel area: fills the space below header + tabs */
+            min-height: 0;      /* required so overflow-y actually kicks in */
+            overflow-y: auto;   /* only the area below the tab row scrolls */
+            overscroll-behavior: contain;
+            padding-right: 6px; /* keep text clear of the scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        /* Check panel: let the log fill the remaining fixed-height space below the controls */
+        #panel-check.active {
+            display: flex;
+            flex-direction: column;
+        }
+        #panel-check .log-panel {
+            flex: 1 1 auto;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            margin-top: 18px;
+        }
+        #panel-check .log-content {
+            height: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        /* Forms */
+        label { font-weight: 600; display: block; margin-bottom: 8px; color: #334155; }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 1.25rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            outline: none;
+            transition: 0.2s;
+            background: #f8fafc;
+            font-family: var(--tibetan-font);
+        }
+        textarea { font-size: 1rem; resize: vertical; }
+        input:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            background: white;
+        }
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 11px 22px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            margin: 4px 6px 4px 0;
+        }
+        .btn:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.28);
+            transform: translateY(-1px);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn.secondary {
+            background: white;
+            color: var(--text);
+            border: 1px solid #cbd5e1;
+        }
+        .btn.secondary:hover { background: #f1f5f9; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+        .btn:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Result badge */
+        .result-badge {
+            margin-top: 14px;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            text-align: center;
+        }
+        .result-badge.valid { background: var(--valid-bg); color: var(--valid); border: 1px solid #a7f3d0; }
+        .result-badge.invalid { background: var(--invalid-bg); color: var(--invalid); border: 1px solid #fecaca; }
+        .result-badge.idle { background: #f1f5f9; color: #475569; }
+
+        .test-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 9px 16px;
+            border-radius: 40px;
+            font-size: 1rem;
+            font-family: var(--tibetan-font);
+            cursor: pointer;
+            transition: 0.15s;
+            color: var(--text);
+            margin: 4px 6px 4px 0;
+        }
+        .test-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+
+        /* Logs */
+        .log-panel { margin-top: 18px; }
+        .log-content {
+            background: var(--log-bg);
+            border-radius: 14px;
+            padding: 16px;
+            height: 360px;
+            overflow-y: auto;
+            font-family: 'Monlam', 'Courier New', 'Fira Code', monospace;
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .log-line { margin: 2px 0; border-bottom: 1px solid #334155; padding: 3px 0; }
+        .log-line.info { color: #94a3b8; }
+        .log-line.success { color: #4ade80; }
+        .log-line.error { color: #f87171; }
+        .log-line.warning { color: #fbbf24; }
+
+        /* Stat cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin: 18px 0;
+        }
+        .stat-card {
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-value { font-size: 1.7rem; font-weight: bold; color: var(--text); }
+        .stat-label { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+        .progress-bar {
+            width: 100%; height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin: 12px 0;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+        .summary-box {
+            background: #f1f5f9;
+            padding: 18px;
+            border-radius: 10px;
+            margin: 14px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        /* Syllable display */
+        .syllables-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 12px 0;
+        }
+        .syllable {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            font-family: var(--tibetan-font);
+            font-size: 1.1rem;
+        }
+        .syllable.invalid { background: #f8d7da; color: #721c24; border-color: #f5c6cb; font-weight: bold; }
+        .syllable.valid { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+        .syllable-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .syllable-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+            font-family: var(--tibetan-font);
+            font-size: 1.2rem;
+            background: #fafafa;
+        }
+        .gen-group-title {
+            grid-column: 1 / -1;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 8px 0 2px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .gen-truncated { grid-column: 1 / -1; margin-top: 8px; }
+        .error-text { color: #dc2626; }
+
+        /* ===== Nine-grid IME panel ===== */
+        .nine-hint { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; line-height: 1.7; }
+        .nine-compose {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            min-height: 54px; padding: 10px 14px;
+            border: 2px dashed var(--border); border-radius: 12px;
+            background: #f8fafc; margin-bottom: 14px;
+        }
+        .nine-compose-label { font-weight: 600; color: var(--muted); font-size: 0.9rem; }
+        .nine-compose-empty { color: #94a3b8; font-size: 0.95rem; }
+        .nine-chip {
+            font-family: var(--tibetan-font);
+            font-size: 1.35rem; line-height: 1;
+            padding: 6px 12px; border-radius: 10px;
+            border: 2px solid #cbd5e1; background: white; color: var(--text);
+            cursor: pointer; transition: 0.15s;
+        }
+        .nine-chip:hover { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+        .nine-chip-sep {
+            background: rgba(59,130,246,0.08); border-color: var(--accent);
+            color: var(--accent); font-size: 1.3rem; padding: 6px 10px;
+            cursor: pointer;
+        }
+        .nine-chip-sep:hover { background: rgba(59,130,246,0.16); }
+        .nine-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 8px; margin: 0 auto 10px; max-width: 320px;
+        }
+        .nine-key {
+            font-family: var(--tibetan-font);
+            aspect-ratio: 1 / 1;
+            position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+            border-radius: 16px;
+            border: 2px solid #cbd5e1; background: white;
+            cursor: pointer; user-select: none;
+            transition: border-color 0.15s, background 0.15s, transform 0.1s;
+        }
+        .nine-key-num {
+            position: absolute; top: 8px; left: 12px;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            font-size: 1rem; font-weight: 700; color: #64748b;
+        }
+        .nine-key-letters {
+            font-size: 1.35rem; letter-spacing: 1px; line-height: 1;
+        }
+        .nine-key-vowel {
+            position: absolute; bottom: 5px; right: 10px;
+            font-size: 0.95rem; color: var(--accent); font-weight: bold;
+        }
+        .nine-key:hover { border-color: var(--accent); background: #f8fafc; }
+        .nine-key:active { transform: scale(0.97); }
+        .nine-key-pressed { border-color: var(--accent); background: rgba(59,130,246,0.08); }
+        .nine-key-pressed .nine-key-letters { color: var(--accent); font-weight: bold; }
+        .nine-key-fn { color: var(--accent); background: rgba(59,130,246,0.06); border-color: var(--accent); }
+        .nine-key-fn .nine-key-letters { font-size: 1.9rem; }
+        .nine-cand-head { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 6px; }
+        .nine-cand-head strong { font-size: 1rem; }
+        .nine-cand-count { color: var(--muted); font-size: 0.85rem; }
+        .nine-cand-strip {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            min-height: 48px; max-height: 240px; overflow-y: auto;
+            padding: 10px; border: 1px solid var(--border); border-radius: 12px;
+            background: #f8fafc;
+        }
+        .nine-cand {
+            font-family: var(--tibetan-font);
+            font-size: 1.25rem; line-height: 1;
+            padding: 8px 14px; border-radius: 40px;
+            border: 1px solid #cbd5e1; background: white; color: var(--text);
+            cursor: pointer; transition: 0.15s;
+        }
+        .nine-cand:hover { border-color: var(--accent); background: rgba(59,130,246,0.08); transform: translateY(-1px); }
+        .nine-empty-note { color: #94a3b8; font-size: 0.9rem; padding: 8px 4px; }
+        .nine-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 14px; }
+
+        /* ===== Syllable structure visualizer ===== */
+        .viz-wrap { margin-top: 18px; }
+        .viz-header {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .viz-header .viz-ornament {
+            font-size: 1.6rem; line-height: 1;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .viz-header h3 { margin: 0; font-size: 1.05rem; }
+        .viz-header .viz-badge {
+            margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 40px; font-size: 0.85rem; font-weight: 700;
+            transition: 0.3s;
+        }
+        .viz-badge.idle { background: #f1f5f9; color: #475569; }
+        .viz-badge.valid { background: var(--valid-bg); color: var(--valid); border: 1px solid #a7f3d0; animation: vizPulse 1.6s ease-in-out infinite; }
+        .viz-badge.invalid { background: var(--invalid-bg); color: var(--invalid); border: 1px solid #fecaca; animation: vizShake 0.4s ease; }
+        @keyframes vizPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35); }
+            50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        }
+        @keyframes vizShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .viz-stage {
+            position: relative;
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 60%, #f1f5f9 100%);
+            border: 2px dashed #cbd5e1; border-radius: 18px;
+            padding: 18px 16px 14px;
+            min-height: 120px;
+        }
+        .viz-stage::before { /* corner accent — line-art feel */
+            content: ''; position: absolute; top: 8px; left: 8px;
+            width: 22px; height: 22px;
+            border-top: 3px solid var(--accent); border-left: 3px solid var(--accent);
+            border-top-left-radius: 8px; opacity: 0.6;
+        }
+        .viz-stage::after {
+            content: ''; position: absolute; bottom: 8px; right: 8px;
+            width: 22px; height: 22px;
+            border-bottom: 3px solid var(--accent); border-right: 3px solid var(--accent);
+            border-bottom-right-radius: 8px; opacity: 0.6;
+        }
+        .viz-idle {
+            color: #94a3b8; text-align: center; padding: 30px 10px;
+            font-size: 0.95rem; line-height: 1.8;
+        }
+        .viz-idle .viz-idle-glyph { display: block; font-size: 2.4rem; font-family: var(--tibetan-font); margin-bottom: 6px; color: #cbd5e1; }
+
+        .viz-syllable-block { margin-bottom: 16px; }
+        .viz-syllable-block:last-child { margin-bottom: 0; }
+        .viz-syllable-head {
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            padding-bottom: 10px; margin-bottom: 12px;
+            border-bottom: 1px dashed var(--border);
+        }
+        .viz-syllable-label { font-size: 0.75rem; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; }
+        .viz-big-glyph {
+            font-family: var(--tibetan-font);
+            font-size: 3.2rem; line-height: 1.15;
+            color: var(--text);
+            text-shadow: 0 3px 10px rgba(59, 130, 246, 0.18);
+            letter-spacing: 2px;
+        }
+        .viz-big-glyph.valid { color: var(--valid); }
+        .viz-big-glyph.invalid { color: var(--invalid); }
+        .viz-syllable-meta { font-size: 0.8rem; color: var(--muted); }
+        .viz-syllable-meta b { color: var(--text); font-weight: 700; }
+
+        /* 2D orthographic grid: superscript & vowel sit ABOVE the base, subscript BELOW,
+           prefix to the left, suffix / post-suffix to the right of the base column.
+           Blueprint dot-grid backdrop keeps the "drawn on graph paper" line-art feel. */
+        .viz-grid {
+            display: grid;
+            gap: 10px 14px;
+            justify-content: center;
+            justify-items: center;
+            align-items: start;
+            position: relative;
+            background-image: radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.14) 1px, transparent 1.4px);
+            background-size: 22px 22px;
+            border: 1px dashed #e2e8f0;
+            border-radius: 12px;
+            padding: 18px 16px 16px;
+        }
+        .viz-char-card {
+            position: relative; width: 86px; min-height: 116px;
+            background: #fff;
+            border: 2px solid var(--border); border-radius: 14px;
+            padding: 12px 6px 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+            animation: vizCardPop 0.28s ease backwards;
+        }
+        .viz-char-card.base-cell { /* the base column is the anchor of the stack */
+            border-width: 2.5px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.10);
+        }
+        @keyframes vizCardPop {
+            from { opacity: 0; transform: translateY(10px) scale(0.92); }
+            to { opacity: 1; transform: none; }
+        }
+        .viz-char-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+            z-index: 2;
+        }
+        .viz-char-card::after { /* line-art corner ticks */
+            content: ''; position: absolute; top: -5px; left: -5px;
+            width: 12px; height: 12px;
+            border-top: 2px solid currentColor; border-left: 2px solid currentColor;
+            border-top-left-radius: 6px; opacity: 0.55;
+        }
+        .viz-char-card .viz-pos {
+            position: absolute; top: -9px; left: -9px;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: #1e293b; color: #fff;
+            font-size: 0.72rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        }
+        .viz-char-card .viz-pos.ok { background: #059669; }
+        .viz-char-card .viz-pos.bad { background: #dc2626; }
+        .viz-char-glyph {
+            font-family: var(--tibetan-font);
+            font-size: 2.1rem; line-height: 1.25;
+            min-height: 52px; display: flex; align-items: center; justify-content: center;
+            color: var(--text);
+        }
+        .viz-char-glyph.unknown { color: #cbd5e1; }
+        .viz-char-role {
+            margin-top: auto; font-size: 0.72rem; font-weight: 700;
+            color: #fff; border-radius: 30px; padding: 3px 12px;
+            letter-spacing: 0.3px; max-width: 100%; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
+        }
+        .viz-char-cp { margin-top: 6px; font-size: 0.62rem; color: #94a3b8; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 0.4px; }
+        .viz-char-cands { display: flex; gap: 3px; margin-top: 5px; flex-wrap: wrap; justify-content: center; }
+        .viz-cand-dot { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); opacity: 0.75; }
+
+        .viz-legend {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+        }
+        .viz-legend-item {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.78rem; padding: 4px 12px;
+            border-radius: 40px; background: #fff;
+            border: 1px solid var(--border); color: var(--text);
+        }
+        .viz-legend-item .dot { width: 11px; height: 11px; border-radius: 50%; }
+        .viz-legend-item .role-num { font-weight: 700; font-size: 0.72rem; color: var(--muted); }
+
+        .viz-stats {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px; margin-top: 14px;
+        }
+        .viz-stat {
+            background: #f8fafc; border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px 14px;
+        }
+        .viz-stat .viz-stat-label { font-size: 0.68rem; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+        .viz-stat .viz-stat-value { font-size: 1rem; font-weight: 700; margin-top: 4px; word-break: break-all; font-family: var(--tibetan-font); }
+        .viz-stat .viz-stat-value.mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.85rem; }
+
+        /* ===== Encoder panel ===== */
+        .enc-samples { display: flex; flex-wrap: wrap; gap: 6px; }
+        .enc-sample {
+            background: white; border: 1px solid #cbd5e1; border-radius: 40px;
+            padding: 6px 14px; font-size: 0.95rem; font-family: var(--tibetan-font);
+            cursor: pointer; color: var(--text); transition: 0.15s; margin: 0;
+        }
+        .enc-sample:hover { background: #eef2ff; border-color: var(--accent); }
+        .enc-token-flow {
+            display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;
+            max-height: 280px; overflow-y: auto; padding: 6px;
+            border: 1px solid var(--border); border-radius: 10px; background: #f8fafc;
+            align-content: flex-start;
+        }
+        .enc-tok {
+            display: inline-flex; flex-direction: column; align-items: center;
+            border-radius: 8px; padding: 3px 8px 2px; min-width: 34px;
+            font-family: var(--tibetan-font); font-size: 1.05rem;
+            border: 1px solid; cursor: default;
+        }
+        .enc-tok .enc-tok-glyph { line-height: 1.3; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .enc-tok .enc-tok-sub {
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 0.55rem;
+            opacity: 0.9; max-width: 130px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;
+        }
+        .enc-tok-syl { background: #dcfce7; border-color: #86efac; color: #14532d; }
+        .enc-tok-punc { background: #e0e7ff; border-color: #c7d2fe; color: #312e81; }
+        .enc-tok-foreign { background: #fef3c7; border-color: #fde68a; color: #78350f; }
+        .enc-json-details { margin: 10px 0; }
+        .enc-json-details summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+        .enc-json {
+            background: var(--log-bg); color: #a5f3fc; border-radius: 10px;
+            padding: 12px; font-size: 12px; overflow: auto; max-height: 280px;
+            white-space: pre-wrap; word-break: break-all;
+        }
+        #panel-encoder .log-content { height: 200px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><span class="ornament">༄</span> <span data-i18n="app.title">Tibetan Syllable Guardian</span></h1>
+        <p class="tagline" data-i18n="app.tagline">Orthography-based Tibetan checking · Real-time check / Batch performance / Syllable generation</p>
+        <p class="note" data-i18n="app.note">The checker, batch tester, and generator share the same data and validation rules. Data is always fetched fresh from the server so results stay consistent.</p>
+        <div class="lang-switch">
+            <span data-i18n="app.lang">Language</span>
+            <select id="langSelect" aria-label="Language">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+                <option value="bo">བོད་སྐད</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="check" data-i18n="tabs.check">🔤 Syllable Check</button>
+        <button class="tab" data-tab="batch" data-i18n="tabs.batch">📊 Batch Performance</button>
+        <button class="tab" data-tab="generator" data-i18n="tabs.generator">⚙️ Syllable Generator</button>
+        <button class="tab" data-tab="nine" data-i18n="tabs.nine">🎹 九宫格输入法</button>
+        <button class="tab" data-tab="encoder" data-i18n="tabs.encoder">🧪 音节编码器</button>
+    </div>
+
+    <!-- Panel 1: single-syllable check -->
+    <div class="panel active" id="panel-check">
+        <label for="syllableInput" data-i18n="check.label">Enter a Tibetan syllable (e.g., བློ, སྒ, བསོ)</label>
+        <input type="text" id="syllableInput" class="tibetan" data-i18n-placeholder="check.placeholder" placeholder="e.g., བཀྲ་ཤིས, སྒྲིག, བསོ …" autofocus>
+        <div id="checkResult" class="result-badge idle" data-i18n="check.await">Awaiting input…</div>
+
+        <!-- Single-syllable structure visualizer (live) -->
+        <div class="viz-wrap" id="vizWrap">
+            <div class="viz-header">
+                <span class="viz-ornament">༄</span>
+                <h3 data-i18n="viz.title">音节结构可视化</h3>
+                <span class="viz-badge idle" id="vizBadge">◌</span>
+            </div>
+            <div class="viz-stage" id="vizStage">
+                <div class="viz-idle" id="vizIdle">
+                    <span class="viz-idle-glyph">༅</span>
+                    <span data-i18n="viz.idle">在上方输入音节，这里将逐字符展示其结构与角色</span>
+                </div>
+                <div id="vizContent"></div>
+            </div>
+            <div class="viz-legend" id="vizLegend"></div>
+            <div class="viz-stats" id="vizStats" style="display:none;"></div>
+        </div>
+
+        <div style="margin-top: 14px;">
+            <button class="test-btn" data-syllable="བསོ">བསོ</button>
+            <button class="test-btn" data-syllable="གག">གག</button>
+            <button class="test-btn" data-syllable="ཀ">ཀ</button>
+            <button class="test-btn" data-syllable="རྐ">རྐ</button>
+            <button class="test-btn" data-syllable="བཀ">བཀ</button>
+            <button class="test-btn" data-syllable="གང">གང</button>
+            <button class="test-btn" data-syllable="གས">གས</button>
+            <button class="test-btn" data-syllable="དག">དག</button>
+            <button class="test-btn" data-syllable="སྒ">སྒ</button>
+            <button class="test-btn" data-syllable="བླ">བླ</button>
+        </div>
+        <div class="log-panel">
+            <div id="checkLog" class="log-content" data-i18n="check.awaitLog">🔍 Awaiting input…</div>
+        </div>
+    </div>
+
+    <!-- Panel 2: batch performance test -->
+    <div class="panel" id="panel-batch">
+        <label for="textInput" data-i18n="batch.label">Paste Tibetan text</label>
+        <textarea id="textInput" class="tibetan" data-i18n-placeholder="batch.placeholder" placeholder="Paste or type Tibetan text (space or ་ separated), then hit ⚡ Run Test…"></textarea>
+        <div style="margin-top: 8px;">
+            <button class="btn" id="batchRunBtn" data-i18n="batch.run">⚡ Run Test</button>
+            <button class="btn secondary" id="loadSampleBtn" data-i18n="batch.sample">📄 Load Sample</button>
+            <button class="btn secondary" id="batchClearBtn" data-i18n="batch.clear">🧹 Clear</button>
+        </div>
+        <div class="progress-bar" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
+
+        <div id="batchStats" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-value" id="sTotal">0</div><div class="stat-label" data-i18n="stat.total">Total Syllables</div></div>
+                <div class="stat-card"><div class="stat-value" id="sValid">0</div><div class="stat-label" data-i18n="stat.valid">Valid Syllables</div></div>
+                <div class="stat-card"><div class="stat-value" id="sAccuracy">0%</div><div class="stat-label" data-i18n="stat.accuracy">Accuracy</div></div>
+                <div class="stat-card"><div class="stat-value" id="sTotalTime">0ms</div><div class="stat-label" data-i18n="stat.totalTime">Total Time</div></div>
+                <div class="stat-card"><div class="stat-value" id="sTokenizeTime">0ms</div><div class="stat-label" data-i18n="stat.tokenizeTime">Tokenize Time</div></div>
+                <div class="stat-card"><div class="stat-value" id="sCheckTime">0ms</div><div class="stat-label" data-i18n="stat.checkTime">Check Time</div></div>
+                <div class="stat-card"><div class="stat-value" id="sSpeed">0</div><div class="stat-label" data-i18n="stat.speed">Syllables/s</div></div>
+                <div class="stat-card"><div class="stat-value" id="sCheckSpeed">0</div><div class="stat-label" data-i18n="stat.checkSpeed">Check Speed (pure)</div></div>
+                <div class="stat-card"><div class="stat-value" id="sRecall">0%</div><div class="stat-label" data-i18n="stat.recall">Recall</div></div>
+            </div>
+            <div class="summary-box">
+                <div><strong data-i18n="summary.total">Total:</strong> <span id="sumTotal">0</span></div>
+                <div><strong data-i18n="summary.valid">Valid:</strong> <span id="sumValid" style="color:#065f46;">0</span></div>
+                <div><strong data-i18n="summary.invalid">Invalid:</strong> <span id="sumInvalid" style="color:#991b1b;">0</span></div>
+                <div><strong data-i18n="summary.accuracy">Accuracy:</strong> <span id="sumAccuracy">0%</span></div>
+                <div><strong data-i18n="summary.time">Time:</strong> <span id="sumTime">0ms</span></div>
+                <div><strong data-i18n="summary.speed">Speed:</strong> <span id="sumSpeed">0 syllables/s</span></div>
+            </div>
+            <label data-i18n="batch.tokenized">Tokenized syllables</label>
+            <div class="syllables-display" id="batchSyllables"></div>
+            <div class="log-panel"><div id="batchLog" class="log-content"></div></div>
+        </div>
+    </div>
+
+    <!-- Panel 3: syllable generator -->
+    <div class="panel" id="panel-generator">
+        <label for="charInput" data-i18n="gen.label">Enter Tibetan characters (space or comma separated)</label>
+        <textarea id="charInput" class="tibetan" data-i18n-placeholder="gen.placeholder" placeholder="IME-style generation: characters are combined in input order into syllables and ་-joined words, e.g., ག ང ས ད ན འ ི"></textarea>
+        <div style="margin-top: 8px;">
+            <button class="btn" id="generateBtn" data-i18n="gen.generate">✨ Generate</button>
+            <button class="btn secondary" id="genClearBtn" data-i18n="gen.clear">🧹 Clear</button>
+        </div>
+        <div id="genResults" style="display: none; margin-top: 18px;">
+            <div class="summary-box" id="genStats"></div>
+            <label data-i18n="gen.candidates">Candidates (in input order)</label>
+            <div class="syllable-list" id="genList"></div>
+        </div>
+    </div>
+
+    <!-- Panel 4: nine-grid input method demo -->
+    <div class="panel" id="panel-nine">
+        <p class="nine-hint" data-i18n="nine.hint">One tap inputs the whole key group (e.g. ཀཁགང); vowels live on the keys: ི→4, ེ→5, ོ→6, ུ→8; subscripts work two ways — press the source letter and it auto-converts (མྱོ = 4→6→6, ཡ→ྱ), or short segments (≤3 keys) auto-insert one (བ+ཀ→བཀྲ, never after a vowel); superscripts generate automatically (ར+ཀ→རྐ); the bottom-right ་ key only SEGMENTS the composition (nothing is committed) — keep typing and candidates grow into SENTENCE-level phrases, ready for dictionary filtering later; tapping a candidate commits the whole phrase with ་.</p>
+
+        <div class="nine-compose">
+            <span class="nine-compose-label" data-i18n="nine.compose">组合串</span>
+            <span id="nineComposeEmpty" class="nine-compose-empty" data-i18n="nine.composeEmpty">尚未按键…</span>
+            <div id="nineChips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+
+        <div class="nine-grid" id="nineGrid"></div>
+
+        <div class="nine-cand-head">
+            <strong data-i18n="nine.candidates">候选</strong>
+            <span class="nine-cand-count" id="nineCandCount"></span>
+        </div>
+        <div class="nine-cand-strip" id="nineCandStrip"></div>
+
+        <div class="nine-actions">
+            <button class="btn secondary" id="nineSpaceBtn">␣ <span data-i18n="nine.space">空格</span></button>
+            <button class="btn secondary" id="nineBackspace">⌫</button>
+            <button class="btn secondary" id="nineClearBtn" data-i18n="nine.clear">🧹 清空</button>
+            <button class="btn secondary" id="nineCopyBtn" data-i18n="nine.copy">📋 复制</button>
+        </div>
+
+        <label for="nineOutput" data-i18n="nine.output">上屏文本（实时合法性检测）</label>
+        <textarea id="nineOutput" class="tibetan" rows="3" readonly placeholder="བཀྲ་ཤིས་"></textarea>
+        <div id="nineOutBadge" class="result-badge idle" data-i18n="nine.outIdle">等待上屏…</div>
+    </div>
+
+    <!-- Panel 5: syllable encoder (encoder.js — docs/藏文音节编码器项目方案.md) -->
+    <div class="panel" id="panel-encoder">
+        <label for="encInput" data-i18n="enc.label">输入任意文本（藏文音节 / 标点 / 数字 / 英文可混合）</label>
+        <textarea id="encInput" class="tibetan" rows="3" data-i18n-placeholder="enc.placeholder" placeholder="例如：བོད་ཀྱི་སྐད་ཡིག　／　སྤྲེའུའི　／　བོད་2024ལོར་Hello།"></textarea>
+        <div style="margin-top: 8px;">
+            <button class="btn" id="encRunBtn" data-i18n="enc.run">🧪 编码 + 往返验证</button>
+            <button class="btn secondary" id="encSelfBtn" data-i18n="enc.self">✅ 内置语料自检</button>
+            <button class="btn secondary" id="encClearBtn" data-i18n="enc.clear">🧹 清空</button>
+        </div>
+        <div class="enc-samples" id="encSamples" style="margin-top: 8px;"></div>
+
+        <div id="encBadge" class="result-badge idle" data-i18n="enc.await">等待输入…</div>
+
+        <div id="encOutput" style="display:none;">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-value" id="encTokCount">0</div><div class="stat-label" data-i18n="enc.statTokens">Token 总数</div></div>
+                <div class="stat-card"><div class="stat-value" id="encSylCount">0</div><div class="stat-label" data-i18n="enc.statSyl">syl 音节</div></div>
+                <div class="stat-card"><div class="stat-value" id="encPuncCount">0</div><div class="stat-label" data-i18n="enc.statPunc">punc 标点</div></div>
+                <div class="stat-card"><div class="stat-value" id="encForeignCount">0</div><div class="stat-label" data-i18n="enc.statForeign">foreign 外来</div></div>
+                <div class="stat-card"><div class="stat-value" id="encTime">0ms</div><div class="stat-label" data-i18n="enc.statTime">编码耗时</div></div>
+            </div>
+            <label data-i18n="enc.tokens">Token 序列：绿色 = syl（下行小字为槽位向量），紫色 = punc，黄色 = foreign</label>
+            <div class="enc-token-flow" id="encTokenFlow"></div>
+            <div id="encTruncNote" class="error-text" style="display:none;"></div>
+            <details class="enc-json-details">
+                <summary data-i18n="enc.json">查看原始 token JSON（含完整槽位数据）</summary>
+                <pre class="enc-json" id="encJson"></pre>
+            </details>
+        </div>
+
+        <div class="log-panel"><div id="encLog" class="log-content" data-i18n="enc.awaitLog">输入上方文本后点击「编码」按钮，或点示例文本直接体验。</div></div>
+    </div>
+</div>
+
+<!-- Shared scripts: i18n first, then the checker (single source of truth), then the generator -->
+<script src="i18n.js"></script>
+<script src="tibetan_tokenizer.js"></script>
+<script src="tibetan_algorithm.js"></script>
+<script src="tibetan_generator.js"></script>
+<script src="encoder.js"></script>
+
+<script>
+(function () {
+    'use strict';
+
+    // ============ 1. Shared data loading (single source, no localStorage, always fresh) ============
+    let tibetanData = null;
+    let dataLoadPromise = null;
+
+    // Shortcut for localized text (dictionary: ui_texts.json)
+    const T = (key, params) => window.TibetanI18n.t(key, params);
+
+    function ensureTibetanData() {
+        if (tibetanData) return Promise.resolve(true);
+        if (dataLoadPromise) return dataLoadPromise;
+        const noCache = {
+            cache: 'no-cache',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        };
+        dataLoadPromise = fetch('tibetan_data.json', noCache)
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            .then(d => {
+                tibetanData = d;
+                console.log(T('console.dataLoaded'));
+                return true;
+            })
+            .catch(err => {
+                dataLoadPromise = null; // reset so a retry is possible
+                console.error(T('console.dataFail'), err);
+                return false;
+            });
+        return dataLoadPromise;
+    }
+
+    // i18n readiness (ui_texts.json loaded)
+    function ensureI18n() {
+        return window.TibetanI18n.ready;
+    }
+
+    // Apply the current language to all data-i18n elements and the lang selector
+    function applyLang() {
+        const i18n = window.TibetanI18n;
+        const lang = i18n.getLang();
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
+        // In Tibetan mode, render the whole UI with the Monlam font (html.lang-bo body rule)
+        document.documentElement.classList.toggle('lang-bo', lang === 'bo');
+        document.title = T('app.title');
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            el.textContent = T(el.dataset.i18n);
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            el.placeholder = T(el.dataset.i18nPlaceholder);
+        });
+        const sel = document.getElementById('langSelect');
+        if (sel) sel.value = lang;
+    }
+
+    // ============ 2. Tab switching ============
+    document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+            document.querySelectorAll('.panel').forEach(p =>
+                p.classList.toggle('active', p.id === 'panel-' + t.dataset.tab));
+        });
+    });
+
+    // ============ 3. Single-syllable check ============
+    const checkInput = document.getElementById('syllableInput');
+    const checkResult = document.getElementById('checkResult');
+    const checkLog = document.getElementById('checkLog');
+
+    function renderLogs(el, logs) {
+        if (!logs || logs.length === 0) {
+            el.innerHTML = '<div class="log-line info">' + T('common.noLogs') + '</div>';
+            return;
+        }
+        el.innerHTML = '';
+        logs.forEach(line => {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            if (line.startsWith('✅')) div.classList.add('success');
+            else if (line.startsWith('❌')) div.classList.add('error');
+            else if (line.startsWith('⏭️')) div.classList.add('warning');
+            else div.classList.add('info');
+            div.textContent = line;
+            el.appendChild(div);
+        });
+        el.scrollTop = el.scrollHeight;
+    }
+
+    async function checkSingle() {
+        const text = checkInput.value.trim();
+        if (!text) {
+            checkResult.textContent = T('check.await');
+            checkResult.className = 'result-badge idle';
+            renderLogs(checkLog, [T('check.awaitLog')]);
+            renderViz();
+            return;
+        }
+        await Promise.all([ensureTibetanData(), ensureI18n()]);
+        if (!tibetanData) {
+            checkResult.textContent = T('check.dataFail');
+            checkResult.className = 'result-badge invalid';
+            renderLogs(checkLog, [T('check.dataFailLog')]);
+            renderViz();
+            return;
+        }
+        const { valid, logs } = window.TibetanAlgorithm.checkSyllableWithLog(text, tibetanData);
+        checkResult.textContent = valid ? T('check.valid') : T('check.invalid');
+        checkResult.className = 'result-badge ' + (valid ? 'valid' : 'invalid');
+        renderLogs(checkLog, logs);
+        renderViz();
+    }
+
+    document.querySelectorAll('.test-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            checkInput.value = btn.dataset.syllable;
+            checkSingle();
+        });
+    });
+    checkInput.addEventListener('input', checkSingle);
+
+    // ============ 3.5 Single-syllable structure visualizer ============
+    // Live "line-art" diagram: the input syllable is shown in large type and
+    // decomposed into per-character cards, each labelled with its orthographic
+    // role (prefix / superscript / base / subscript / vowel / suffix / post-suffix).
+    const VIZ_ROLES = [
+        { key: 'role.0', color: '#3b82f6' },
+        { key: 'role.1', color: '#8b5cf6' },
+        { key: 'role.2', color: '#ef4444' },
+        { key: 'role.3', color: '#f59e0b' },
+        { key: 'role.4', color: '#10b981' },
+        { key: 'role.5', color: '#06b6d4' },
+        { key: 'role.6', color: '#ec4899' }
+    ];
+    // 2D orthographic grid position per role (traditional syllable-stack diagram):
+    // vowel on top → superscript → base (with prefix left / suffix & post-suffix right) → subscript below.
+    const VIZ_GRID_POS = {
+        0: { r: 2, c: 0 }, // prefix      — base row, left of base
+        1: { r: 1, c: 1 }, // superscript — directly above the base
+        2: { r: 2, c: 1 }, // base        — the anchor cell
+        3: { r: 3, c: 1 }, // subscript   — directly below the base
+        4: { r: 0, c: 1 }, // vowel       — on top of the whole stack
+        5: { r: 2, c: 2 }, // suffix      — base row, right of base
+        6: { r: 2, c: 3 }  // post-suffix — base row, far right
+    };
+    let vizPrepared = null; // cached prepareData() result (variantMap etc. built once)
+
+    // Determine the role played by each character position: mirror checkSyllableCore's
+    // template search, so the labels match the checker's own verdict (not a guess).
+    function vizFindRoles(chars, charTags, sequenceTemplates, combinationRules, variantMap) {
+        const n = chars.length;
+        if (n < 1 || n > 7) return { roles: null, cps: chars.map(toCodepoint), infos: [], template: null };
+        const cps = chars.map(toCodepoint);
+        const infos = cps.map(cp => charTags[cp]);
+        if (infos.some(i => !i)) return { roles: null, cps, infos, template: null };
+        const templates = (sequenceTemplates[n - 1] || []).map(t => t.split('').map(Number));
+        if (!templates.length) return { roles: null, cps, infos, template: null };
+        const masks = infos.map(info => {
+            let m = 0;
+            for (const r of info.tags) m |= 1 << r;
+            return m;
+        });
+        // Preferred: the first role-compatible template that also passes all combination rules
+        for (const roles of templates) {
+            let match = true;
+            for (let i = 0; i < n; i++) {
+                if ((masks[i] & (1 << roles[i])) === 0) { match = false; break; }
+            }
+            if (!match) continue;
+            if (window.TibetanAlgorithm.validateSyllablePath(cps, roles, combinationRules, variantMap)) {
+                return { roles, cps, infos, template: roles.join(''), matched: true };
+            }
+        }
+        // Fallback (still role-compatible, but combination rules failed): show the
+        // roles anyway so the user sees the intended structure next to the ❌ verdict.
+        for (const roles of templates) {
+            let match = true;
+            for (let i = 0; i < n; i++) {
+                if ((masks[i] & (1 << roles[i])) === 0) { match = false; break; }
+            }
+            if (match) return { roles, cps, infos, template: roles.join(''), matched: false };
+        }
+        return { roles: null, cps, infos, template: null };
+    }
+
+    function buildVizLegend() {
+        const legend = document.getElementById('vizLegend');
+        legend.innerHTML = '';
+        VIZ_ROLES.forEach(r => {
+            const item = document.createElement('span');
+            item.className = 'viz-legend-item';
+            const dot = document.createElement('span');
+            dot.className = 'dot';
+            dot.style.background = r.color;
+            const num = document.createElement('span');
+            num.className = 'role-num';
+            num.textContent = r.key.slice(-1);
+            item.appendChild(dot); item.appendChild(num);
+            item.appendChild(document.createTextNode(T(r.key)));
+            legend.appendChild(item);
+        });
+    }
+
+    // Compact the 2D orthographic layout: only keep rows/columns that are actually
+    // used, renumbered from 1, so e.g. a lone ཀ sits centered instead of floating
+    // in a big empty grid.
+    function vizLayout(roles) {
+        const cells = roles.map(r => VIZ_GRID_POS[r] || { r: 2, c: 1 });
+        const rows = [...new Set(cells.map(p => p.r))].sort((a, b) => a - b);
+        const cols = [...new Set(cells.map(p => p.c))].sort((a, b) => a - b);
+        const rowMap = {}, colMap = {};
+        rows.forEach((r, i) => rowMap[r] = i + 1);
+        cols.forEach((c, i) => colMap[c] = i + 1);
+        return {
+            cells: cells.map(p => ({ r: rowMap[p.r], c: colMap[p.c] })),
+            rows: rows.length,
+            cols: cols.length
+        };
+    }
+
+    function renderViz() {
+        const text = checkInput.value.trim();
+        const idle = document.getElementById('vizIdle');
+        const content = document.getElementById('vizContent');
+        const badge = document.getElementById('vizBadge');
+        const stats = document.getElementById('vizStats');
+
+        if (!text || !tibetanData) {
+            idle.style.display = '';
+            content.innerHTML = '';
+            stats.style.display = 'none';
+            stats.innerHTML = '';
+            badge.className = 'viz-badge idle';
+            badge.textContent = '◌ ' + T('check.await');
+            return;
+        }
+        idle.style.display = 'none';
+
+        if (!vizPrepared) vizPrepared = window.TibetanAlgorithm.prepareData(tibetanData);
+        const { charTags, sequenceTemplates, combinationRules, variantMap } = vizPrepared;
+        const t0 = performance.now();
+
+        const syllables = window.TibetanTokenizer.splitSyllables(text);
+        content.innerHTML = '';
+        const frag = document.createDocumentFragment();
+
+        let allValid = true;
+        let totalChars = 0;
+        const nfdParts = [];
+        let templateText = '—';
+        const seqNames = [];
+
+        syllables.forEach(sy => {
+            const chars = Array.from(sy.normalize('NFD'));
+            totalChars += chars.length;
+            nfdParts.push(chars.join(' + '));
+            const res = vizFindRoles(chars, charTags, sequenceTemplates, combinationRules, variantMap);
+            const isValid = window.TibetanAlgorithm.checkSyllable(
+                sy, charTags, sequenceTemplates, combinationRules, variantMap);
+            if (!isValid) allValid = false;
+            if (res.template && templateText === '—') templateText = res.template;
+            if (res.roles) seqNames.push(res.roles.map(r => T(VIZ_ROLES[r].key)).join(' → '));
+
+            const block = document.createElement('div');
+            block.className = 'viz-syllable-block';
+
+            // Head: syllable in large type + meta
+            const head = document.createElement('div');
+            head.className = 'viz-syllable-head';
+            const glyph = document.createElement('span');
+            glyph.className = 'viz-big-glyph ' + (isValid ? 'valid' : 'invalid');
+            glyph.textContent = sy;
+            head.appendChild(glyph);
+            const meta = document.createElement('span');
+            meta.className = 'viz-syllable-meta';
+            meta.innerHTML =
+                '<b>' + (isValid ? '✅ ' + T('syllable.valid') : '❌ ' + T('syllable.invalid')) + '</b>' +
+                ' · ' + chars.length + ' ' + T('viz.charCount') +
+                (res.template ? ' · ' + T('viz.template') + ' <b>' + res.template + '</b>' : '');
+            head.appendChild(meta);
+            block.appendChild(head);
+
+            // Role row: 2D orthographic grid — superscript/vowel above the base,
+            // subscript below, prefix/suffix left/right (traditional stack diagram)
+            const layout = (res.roles && res.roles.length === chars.length)
+                ? vizLayout(res.roles)
+                : { cells: chars.map((_, i) => ({ r: 1, c: i + 1 })), rows: 1, cols: chars.length };
+            const grid = document.createElement('div');
+            grid.className = 'viz-grid';
+            grid.style.gridTemplateColumns = 'repeat(' + layout.cols + ', auto)';
+            grid.style.gridTemplateRows = 'repeat(' + layout.rows + ', auto)';
+
+            chars.forEach((ch, i) => {
+                const cp = toCodepoint(ch);
+                const info = charTags[cp];
+                const role = (res.roles && info) ? res.roles[i] : null;
+
+                const card = document.createElement('div');
+                card.className = 'viz-char-card';
+                card.style.animationDelay = (i * 0.06) + 's';
+                if (role !== null) {
+                    card.style.borderColor = VIZ_ROLES[role].color;
+                    card.style.color = VIZ_ROLES[role].color;
+                }
+                card.style.gridRowStart = layout.cells[i].r;
+                card.style.gridColumnStart = layout.cells[i].c;
+                if (role === 2) card.classList.add('base-cell');
+
+                const pos = document.createElement('span');
+                pos.className = 'viz-pos ' + (isValid ? 'ok' : 'bad');
+                pos.textContent = String(i + 1);
+                card.appendChild(pos);
+
+                const g = document.createElement('span');
+                g.className = 'viz-char-glyph' + (!info ? ' unknown' : '');
+                g.textContent = ch;
+                card.appendChild(g);
+
+                const roleTag = document.createElement('span');
+                roleTag.className = 'viz-char-role';
+                if (role !== null) {
+                    roleTag.textContent = T(VIZ_ROLES[role].key);
+                    roleTag.style.background = VIZ_ROLES[role].color;
+                } else if (info) {
+                    roleTag.textContent = T('viz.candidate');
+                    roleTag.style.background = '#64748b';
+                } else {
+                    roleTag.textContent = T('viz.unknown');
+                    roleTag.style.background = '#94a3b8';
+                }
+                card.appendChild(roleTag);
+
+                const cpEl = document.createElement('span');
+                cpEl.className = 'viz-char-cp';
+                cpEl.textContent = cp;
+                card.appendChild(cpEl);
+
+                // Candidate-role dots (this char's other possible roles)
+                if (info && info.tags.length > 1) {
+                    const dots = document.createElement('div');
+                    dots.className = 'viz-char-cands';
+                    info.tags.forEach(t => {
+                        const d = document.createElement('span');
+                        d.className = 'viz-cand-dot';
+                        d.style.background = VIZ_ROLES[t].color;
+                        d.title = T(VIZ_ROLES[t].key);
+                        dots.appendChild(d);
+                    });
+                    card.appendChild(dots);
+                }
+                grid.appendChild(card);
+            });
+            block.appendChild(grid);
+            frag.appendChild(block);
+        });
+
+        content.appendChild(frag);
+        const ms = (performance.now() - t0).toFixed(2);
+
+        badge.className = 'viz-badge ' + (allValid ? 'valid' : 'invalid');
+        badge.textContent = allValid ? '✅ ' + T('check.valid') : '❌ ' + T('check.invalid');
+
+        // Stats strip
+        stats.style.display = 'grid';
+        stats.innerHTML = '';
+        const statDefs = [
+            [T('viz.syllables'), String(syllables.length)],
+            [T('viz.charCount'), totalChars + ' / 7'],
+            [T('viz.nfd'), nfdParts.join(' · ')],
+            [T('viz.template'), templateText],
+            [T('viz.roleSeq'), seqNames.join(' · ') || '—'],
+            [T('viz.time'), ms + ' ms']
+        ];
+        statDefs.forEach(([label, value]) => {
+            const box = document.createElement('div');
+            box.className = 'viz-stat';
+            const l = document.createElement('div');
+            l.className = 'viz-stat-label';
+            l.textContent = label;
+            const v = document.createElement('div');
+            v.className = 'viz-stat-value mono';
+            v.textContent = value;
+            box.appendChild(l); box.appendChild(v);
+            stats.appendChild(box);
+        });
+    }
+
+    // ============ 4. Batch performance test ============
+    const textInput = document.getElementById('textInput');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const batchStats = document.getElementById('batchStats');
+
+    async function runBatch() {
+        const text = textInput.value.trim();
+        if (!text) { alert(T('alert.enterText')); return; }
+        const ok = await Promise.all([ensureTibetanData(), ensureI18n()]);
+        if (!tibetanData) { alert(T('alert.dataFail')); return; }
+
+        const btn = document.getElementById('batchRunBtn');
+        btn.disabled = true;
+        progressBar.style.display = 'block';
+        progressFill.style.width = '0%';
+        batchStats.style.display = 'block';
+        document.getElementById('batchLog').innerHTML = '';
+        document.getElementById('batchSyllables').innerHTML = '';
+
+        try {
+            const result = await window.TibetanAlgorithm.runPerformanceTest(text, tibetanData, progress => {
+                progressFill.style.width = progress + '%';
+            });
+
+            document.getElementById('sTotal').textContent = result.totalSyllables;
+            document.getElementById('sValid').textContent = result.validCount;
+            document.getElementById('sAccuracy').textContent = result.accuracy + '%';
+            document.getElementById('sTotalTime').textContent = result.totalTime.toFixed(2) + 'ms';
+            document.getElementById('sTokenizeTime').textContent = result.tokenizeTime.toFixed(2) + 'ms';
+            document.getElementById('sCheckTime').textContent = result.checkTime.toFixed(2) + 'ms';
+            document.getElementById('sSpeed').textContent = result.syllablesPerSecond;
+            document.getElementById('sCheckSpeed').textContent = result.checkSpeed || '0';
+            document.getElementById('sRecall').textContent = result.recallRate + '%';
+
+            document.getElementById('sumTotal').textContent = result.totalSyllables;
+            document.getElementById('sumValid').textContent = result.validCount;
+            document.getElementById('sumInvalid').textContent = result.totalSyllables - result.validCount;
+            document.getElementById('sumAccuracy').textContent = result.accuracy + '%';
+            document.getElementById('sumTime').textContent = result.totalTime.toFixed(2) + 'ms';
+            document.getElementById('sumSpeed').textContent = result.syllablesPerSecond + ' ' + T('stat.speed');
+
+            renderLogs(document.getElementById('batchLog'), result.logs);
+
+            const display = document.getElementById('batchSyllables');
+            // Build all spans inside a DocumentFragment and append once, avoiding per-node reflow
+            const frag = document.createDocumentFragment();
+            result.syllableResults.forEach(r => {
+                const span = document.createElement('span');
+                span.className = 'syllable ' + (r.isValid ? 'valid' : 'invalid');
+                span.textContent = (r.isValid ? '✅ ' : '❌ ') + r.syllable;
+                span.title = r.syllable + ' - ' + (r.isValid ? T('syllable.valid') : T('syllable.invalid')) + ' (' + r.time.toFixed(2) + 'ms)';
+                frag.appendChild(span);
+            });
+            display.appendChild(frag);
+        } catch (err) {
+            console.error(T('console.perfError'), err);
+            alert(T('alert.perfError') + err.message);
+        } finally {
+            progressBar.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    document.getElementById('batchRunBtn').addEventListener('click', runBatch);
+    document.getElementById('loadSampleBtn').addEventListener('click', () => {
+        textInput.value = 'བློ་མཐུན་ཀྲའོ་ནན་ཆི་ལ་སྙུང་གཞི་ཕོག་སྐབས་དང་སྐུ་གཤེགས་རྗེས། ཞི་ཅིན་ཕིང་དང་ལིས་ཁི་ཆང་།';
+    });
+    document.getElementById('batchClearBtn').addEventListener('click', () => {
+        textInput.value = '';
+        batchStats.style.display = 'none';
+    });
+
+    // ============ 5. Syllable generator ============
+    const charInput = document.getElementById('charInput');
+
+    async function generateSyllables() {
+        const raw = charInput.value.trim();
+        if (!raw) { alert(T('alert.enterChars')); return; }
+        const ok = await Promise.all([ensureTibetanData(), ensureI18n()]);
+        if (!tibetanData) { alert(T('alert.dataFail')); return; }
+
+        const chars = raw.split(/[\s,]+/).filter(ch => ch.trim() !== '');
+        if (chars.length === 0) { alert(T('alert.noValidChars')); return; }
+
+        try {
+            const start = performance.now();
+            const syllables = window.TibetanGenerator.generateSyllablesFromChars(chars, tibetanData);
+            const time = performance.now() - start;
+
+            // Group by ་ count: single / two-syllable / three-syllable candidates (IME-style)
+            const groups = [[], [], []];
+            syllables.forEach(s => {
+                const n = (s.match(/་/g) || []).length;
+                groups[Math.min(n, 2)].push(s);
+            });
+            const groupLabels = [T('gen.single'), T('gen.double'), T('gen.triple')];
+
+            document.getElementById('genStats').innerHTML =
+                '<div><strong>' + T('gen.inputChars') + '</strong> ' + chars.join(', ') + '</div>' +
+                '<div><strong>' + T('gen.results') + '</strong> ' + syllables.length + '</div>' +
+                '<div><strong>' + T('gen.time') + '</strong> ' + time.toFixed(2) + 'ms</div>';
+
+            const list = document.getElementById('genList');
+            list.innerHTML = '';
+            if (syllables.length === 0) {
+                list.innerHTML = '<div class="error-text">' + T('gen.noResults') + '</div>';
+            } else {
+                groups.forEach((g, gi) => {
+                    if (g.length === 0) return;
+                    const title = document.createElement('div');
+                    title.className = 'gen-group-title';
+                    title.textContent = groupLabels[gi] + '（' + g.length + '）';
+                    list.appendChild(title);
+                    g.forEach(s => {
+                        const div = document.createElement('div');
+                        div.className = 'syllable-item';
+                        div.textContent = s;
+                        list.appendChild(div);
+                    });
+                });
+                if (syllables.truncated) {
+                    const note = document.createElement('div');
+                    note.className = 'error-text gen-truncated';
+                    note.textContent = T('gen.truncated', { n: syllables.length });
+                    list.appendChild(note);
+                }
+            }
+            document.getElementById('genResults').style.display = 'block';
+        } catch (err) {
+            console.error(T('console.genError'), err);
+            alert(T('alert.genError') + err.message);
+        }
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generateSyllables);
+    document.getElementById('genClearBtn').addEventListener('click', () => {
+        charInput.value = '';
+        document.getElementById('genResults').style.display = 'none';
+    });
+
+    // ============ 6. Nine-grid IME (demo) ============
+    // 3×3 layout in alphabet order (user-confirmed): 7 four-letter keys + ་ separator key + ཧཨ key.
+    // One tap inputs the whole letter group; candidates are only the MERGED single syllables
+    // that use every pressed letter (་-joined words are left to the ་ separator key).
+    // All candidates come from the existing generator, so every suggestion is validated.
+    const NINE_LAYOUT = [
+        { chars: 'ཀཁགང' },                // 1
+        { chars: 'ཅཆཇཉ' },                // 2
+        { chars: 'ཏཐདན' },                // 3
+        { label: 'པཕབམ', chars: 'པཕབམི', vowel: 'ི' },  // 4  (vowel ི)
+        { label: 'ཙཚཛཝ', chars: 'ཙཚཛཝེ', vowel: 'ེ' },  // 5  (vowel ེ)
+        { label: 'ཞཟའཡ', chars: 'ཞཟའཡོ', vowel: 'ོ' },    // 6  (vowel ོ; ཡ must stay in the group for ྱ subscripts)
+        { chars: 'རལཤས' },                // 7
+        { label: 'ཧཨ', chars: 'ཧཨུ', vowel: 'ུ' },        // 8  (vowel ུ)
+        { fn: '་' }                        // 9  separator at the end (bottom-right)
+    ];
+    const NINE_MAX_KEYS = 8;             // composition length cap (sentence typing: several syllables)
+    const NINE_AUTO_SUB_MAX = 3;         // segments ≤ 3 presses get auto-subscript (下加字) expansion
+    const NINE_MAX_COMBOS = 512;         // combo enumeration cap: 4×5×5×5 = 500 stays complete;
+                                         // only the rare 5⁴ = 625 four-vowel-key case truncates
+    const NINE_SHOW = 60;                // displayed candidate cap
+
+    let nineCompose = [];                // [{ chars }] — each press = one letter GROUP
+    let nineOutput = '';
+    let ninePrepared = null;             // prepareData() result for the live validity badge
+
+    const nineGridEl = document.getElementById('nineGrid');
+    const nineChipsEl = document.getElementById('nineChips');
+    const nineComposeEmptyEl = document.getElementById('nineComposeEmpty');
+    const nineCandStripEl = document.getElementById('nineCandStrip');
+    const nineCandCountEl = document.getElementById('nineCandCount');
+    const nineOutputEl = document.getElementById('nineOutput');
+    const nineOutBadgeEl = document.getElementById('nineOutBadge');
+
+    // Build the 3×3 keypad: square T9-style keys with a number badge; the letters are
+    // drawn at build time so they can never go missing again.
+    NINE_LAYOUT.forEach((cell, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'nine-key' + (cell.fn ? ' nine-key-fn' : '');
+        btn.dataset.key = String(idx);
+
+        const num = document.createElement('span');
+        num.className = 'nine-key-num';
+        num.textContent = String(idx + 1);
+        btn.appendChild(num);
+
+        const letters = document.createElement('span');
+        letters.className = 'nine-key-letters';
+        letters.textContent = cell.fn ? cell.fn : (cell.label || cell.chars);
+        btn.appendChild(letters);
+
+        // Vowel badge (bottom-right corner), e.g. ི on key 4; the vowel is part of the
+        // key's letter group, so པི = tap key 4 twice (པ then ི).
+        if (cell.vowel) {
+            const vow = document.createElement('span');
+            vow.className = 'nine-key-vowel';
+            vow.textContent = cell.vowel;
+            btn.appendChild(vow);
+        }
+
+        if (cell.fn) {
+            btn.title = T('nine.sepTip');
+            btn.addEventListener('click', pressNineSeparator);
+        } else {
+            btn.addEventListener('click', () => pressNineKey(idx));
+        }
+        nineGridEl.appendChild(btn);
+    });
+
+    function pressNineKey(idx) {
+        const cell = NINE_LAYOUT[idx];
+        if (nineCompose.length >= NINE_MAX_KEYS) {
+            nineCandCountEl.textContent = T('nine.composeFull', { n: NINE_MAX_KEYS });
+            return;
+        }
+        // Whole-group input: one tap = all letters of the key
+        nineCompose.push({ chars: cell.chars });
+        renderNineCompose();
+        updateNineCandidates();
+    }
+
+    function renderNineCompose() {
+        nineChipsEl.innerHTML = '';
+        nineComposeEmptyEl.style.display = nineCompose.length ? 'none' : '';
+        nineCompose.forEach((item, i) => {
+            if (item.sep) {
+                // Separator marker between syllable segments — click to remove (merge segments)
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'nine-chip nine-chip-sep';
+                chip.textContent = '་';
+                chip.title = T('nine.removeSepTip');
+                chip.addEventListener('click', () => {
+                    nineCompose.splice(i, 1);
+                    renderNineCompose();
+                    updateNineCandidates();
+                });
+                nineChipsEl.appendChild(chip);
+                return;
+            }
+            // Active press: whole letter group, click to remove
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'nine-chip';
+            chip.textContent = item.chars;
+            chip.title = T('nine.removeTip');
+            chip.addEventListener('click', () => {
+                nineCompose.splice(i, 1);
+                renderNineCompose();
+                updateNineCandidates();
+            });
+            nineChipsEl.appendChild(chip);
+        });
+        // Mark the keys whose groups are in the ACTIVE segment
+        nineGridEl.querySelectorAll('.nine-key[data-key]').forEach(btn => {
+            const cell = NINE_LAYOUT[+btn.dataset.key];
+            if (cell.fn) return;
+            const pressed = nineCompose.some(item => item.chars === cell.chars);
+            btn.classList.toggle('nine-key-pressed', pressed);
+        });
+    }
+
+    // Enumerate letter combinations in demo order: the RIGHTMOST (last pressed) key
+    // cycles fastest (e.g. ཀཁགང × རལཤས -> ཀར ཀལ ཀས / ཁར ཁལ ཁས / གར གལ གས / ངར ངལ ངས).
+    function nineCombos(presses) {
+        const n = presses.length;
+        let total = 1;
+        for (const p of presses) total *= p.chars.length;
+        const capped = total > NINE_MAX_COMBOS;
+        const max = Math.min(total, NINE_MAX_COMBOS);
+        const out = [];
+        for (let idx = 0; idx < max; idx++) {
+            let rem = idx;
+            const letters = new Array(n);
+            for (let i = n - 1; i >= 0; i--) {
+                const chars = presses[i].chars;
+                letters[i] = chars[rem % chars.length];
+                rem = Math.floor(rem / chars.length);
+            }
+            out.push(letters);
+        }
+        return { combos: out, capped };
+    }
+
+    // Subjoined forms (U+0F90–U+0FB9) map back to their base letter for coverage checks:
+    // ར + ཀ → རྐ counts as using ར and ཀ; པ + ྲ → པྲ counts as using པ and ྲ.
+    function normalizeChar(ch) {
+        const cp = ch.codePointAt(0);
+        return (cp >= 0x0F90 && cp <= 0x0FB9) ? String.fromCodePoint(cp - 0x50) : ch;
+    }
+
+    // A candidate must use every pressed letter (with multiplicity) to be full-coverage.
+    function coversAll(result, comboLetters) {
+        const need = new Map();
+        for (const ch of comboLetters) {
+            const b = normalizeChar(ch);
+            need.set(b, (need.get(b) || 0) + 1);
+        }
+        for (const ch of result) {
+            if (ch === '་') continue;
+            const b = normalizeChar(ch);
+            if (need.has(b) && need.get(b) > 0) need.set(b, need.get(b) - 1);
+        }
+        for (const v of need.values()) if (v > 0) return false;
+        return true;
+    }
+
+    // Merged-only candidates for ONE segment: full-coverage single syllables that use every
+    // pressed letter. ་-joined words are never auto-generated — the user separates syllables
+    // with the ་ separator key (e.g. ཀཁགང → རལཤས yields ཀར ཀལ ཀས ཁར ཁལ ཁས གར གལ གས ངར ངལ ངས).
+    // Superscripts (上加字) need no extra input (the generator auto-uses the subjoined base);
+    // subscripts (下加字) are auto-inserted by the generator for short segments, since the
+    // grid cannot press variant characters (e.g. པ ས → པྲས).
+    function nineMergedCandidates(presses) {
+        const { combos, capped } = nineCombos(presses);
+        const results = [];   // { text, combo }
+        const seen = new Set();
+        const autoSub = presses.length <= NINE_AUTO_SUB_MAX;
+        for (const letters of combos) {
+            const res = window.TibetanGenerator.generateSyllablesFromChars(
+                letters, tibetanData, autoSub ? { autoSubscript: true } : undefined);
+            for (const s of res) {
+                if (!s.includes('་') && coversAll(s, letters) && !seen.has(s)) {
+                    seen.add(s);
+                    results.push({ text: s, combo: letters.join('·') });
+                }
+            }
+            if (results.length >= NINE_MAX_COMBOS) break; // safety
+        }
+        return { results, capped };
+    }
+
+    // Split the composition into segments (letter-group runs between ་ markers).
+    function nineSegments() {
+        const segs = [];
+        let cur = [];
+        for (const item of nineCompose) {
+            if (item.sep) {
+                if (cur.length) { segs.push(cur); cur = []; }
+            } else if (item.chars) {
+                cur.push({ chars: item.chars });
+            }
+        }
+        if (cur.length) segs.push(cur);
+        return segs;
+    }
+
+    // Sentence-level candidates: each segment yields its merged single syllables, then the
+    // cross product across segments is joined with ་ (e.g. ཀཁགང→རལཤས ་ པཕབམི →
+    // ཀར་པ ཀར་ཕ … ངས་མ). The last segment cycles fastest. This is the raw candidate
+    // space a dictionary will later rank/filter at SENTENCE level.
+    function nineSentenceCandidates() {
+        const segs = nineSegments();
+        if (segs.length === 0) return { results: [], capped: false };
+        const perSeg = segs
+            .map(seg => nineMergedCandidates(seg).results.map(r => r.text))
+            .filter(l => l.length > 0);
+        if (perSeg.length === 0) return { results: [], capped: false };
+        const n = perSeg.length;
+        let total = 1;
+        for (const l of perSeg) total *= l.length;
+        const capped = total > NINE_MAX_COMBOS;
+        const max = Math.min(total, NINE_MAX_COMBOS);
+        const results = [];
+        for (let idx = 0; idx < max; idx++) {
+            let rem = idx;
+            const parts = new Array(n);
+            for (let i = n - 1; i >= 0; i--) {
+                const list = perSeg[i];
+                parts[i] = list[rem % list.length];
+                rem = Math.floor(rem / list.length);
+            }
+            results.push(parts.join('་'));
+        }
+        return { results, capped };
+    }
+
+    // Separator (་): it ONLY marks a syllable boundary inside the composition — nothing is
+    // committed. The user's intent is to keep typing a SENTENCE, so candidates keep
+    // generating across segments (sentence-level), ready for dictionary filtering later.
+    function pressNineSeparator() {
+        if (nineCompose.length === 0) {
+            // Nothing being composed right now: plain ་ insertion
+            nineOutput += '་';
+            renderNineOutput();
+            return;
+        }
+        nineCompose.push({ sep: true });
+        renderNineCompose();
+        updateNineCandidates();
+    }
+
+    let nineGenTimer = null;
+    function updateNineCandidates() {
+        clearTimeout(nineGenTimer);
+        nineGenTimer = setTimeout(() => {
+            if (!tibetanData) return;
+            if (nineCompose.length === 0) {
+                nineCandStripEl.innerHTML = '';
+                nineCandCountEl.textContent = '';
+                return;
+            }
+            try {
+                const t0 = performance.now();
+                const { results, capped } = nineSentenceCandidates();
+                const ms = performance.now() - t0;
+                nineCandCountEl.textContent =
+                    (capped ? '⚠ ' : '') + results.length + ' 条 · ' + ms.toFixed(0) + 'ms';
+                nineCandStripEl.innerHTML = '';
+                if (results.length === 0) {
+                    const note = document.createElement('div');
+                    note.className = 'nine-empty-note';
+                    note.textContent = T('nine.noCandidates');
+                    nineCandStripEl.appendChild(note);
+                    return;
+                }
+                results.slice(0, NINE_SHOW).forEach(s => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'nine-cand';
+                    b.textContent = s;
+                    b.title = T('nine.sentTip');
+                    b.addEventListener('click', () => {
+                        nineOutput += s + '་';
+                        nineCompose = [];
+                        renderNineCompose();
+                        updateNineCandidates();
+                        renderNineOutput();
+                    });
+                    nineCandStripEl.appendChild(b);
+                });
+                const notes = [];
+                if (capped) notes.push(T('nine.comboCapped', { n: NINE_MAX_COMBOS }));
+                if (results.length > NINE_SHOW) notes.push(T('nine.truncated', { n: NINE_SHOW }));
+                if (notes.length) {
+                    const note = document.createElement('div');
+                    note.className = 'nine-empty-note';
+                    note.textContent = notes.join('；');
+                    nineCandStripEl.appendChild(note);
+                }
+            } catch (err) {
+                console.error(T('console.genError'), err);
+                nineCandStripEl.innerHTML = '<div class="nine-empty-note error-text">' + err.message + '</div>';
+            }
+        }, 90);
+    }
+
+    function renderNineOutput() {
+        nineOutputEl.value = nineOutput;
+        if (!nineOutput.trim() || !ninePrepared) {
+            nineOutBadgeEl.className = 'result-badge idle';
+            nineOutBadgeEl.textContent = T('nine.outIdle');
+            return;
+        }
+        const syllables = window.TibetanTokenizer.splitSyllables(nineOutput);
+        let valid = 0;
+        const { charTags, sequenceTemplates, combinationRules, variantMap } = ninePrepared;
+        for (const s of syllables) {
+            if (window.TibetanAlgorithm.checkSyllable(s, charTags, sequenceTemplates, combinationRules, variantMap)) valid++;
+        }
+        const invalid = syllables.length - valid;
+        nineOutBadgeEl.className = 'result-badge ' + (invalid === 0 ? 'valid' : 'invalid');
+        nineOutBadgeEl.textContent = T('nine.outSummary', { n: syllables.length, v: valid, k: invalid });
+    }
+
+    document.getElementById('nineSpaceBtn').addEventListener('click', () => { nineOutput += ' '; renderNineOutput(); });
+    document.getElementById('nineBackspace').addEventListener('click', () => {
+        if (nineCompose.length > 0) {
+            // Remove the last item — popping a ་ boundary re-merges the two segments
+            nineCompose.pop();
+            renderNineCompose();
+            updateNineCandidates();
+        } else {
+            nineOutput = Array.from(nineOutput).slice(0, -1).join('');
+            renderNineOutput();
+        }
+    });
+    document.getElementById('nineClearBtn').addEventListener('click', () => {
+        nineCompose = [];
+        nineOutput = '';
+        renderNineCompose();
+        updateNineCandidates();
+        renderNineOutput();
+    });
+    document.getElementById('nineCopyBtn').addEventListener('click', async () => {
+        if (!nineOutput) return;
+        try {
+            await navigator.clipboard.writeText(nineOutput);
+        } catch (e) {
+            nineOutputEl.select();
+            document.execCommand('copy');
+        }
+        const btn = document.getElementById('nineCopyBtn');
+        const old = btn.textContent;
+        btn.textContent = T('nine.copied');
+        setTimeout(() => { btn.textContent = old; }, 1500);
+    });
+
+    // ============ 6.5 Syllable encoder ============
+    const encInputEl = document.getElementById('encInput');
+    const encBadgeEl = document.getElementById('encBadge');
+    const encOutputEl = document.getElementById('encOutput');
+    const encTokenFlowEl = document.getElementById('encTokenFlow');
+    const encTruncNoteEl = document.getElementById('encTruncNote');
+    const encJsonEl = document.getElementById('encJson');
+    const encLogEl = document.getElementById('encLog');
+    const ENC_VIEW_CAP = 500;
+
+    // 示例文本（同时用作内置自检语料）
+    const ENC_SAMPLE_TEXTS = [
+        'བོད',
+        'སྐབས',
+        'བསྒྲུབས',
+        'སྤྲེའུའི',
+        'དགའི',
+        'མཁའི',
+        'བོད་ཀྱི་སྐད་ཡིག',
+        'བོད་2024ལོར་Hello།',
+        '།་༎',
+        'Hello 2024',
+        'ཀྵ་ཧྲཱི',
+        'བོད་\nཀྱི་\tདང་།'
+    ];
+
+    function encPushLog(lines) {
+        renderLogs(encLogEl, lines);
+    }
+
+    // 渲染单个 token 为彩色芯片：syl 绿色(下排槽位向量)、punc 紫色、foreign 黄色
+    function encRenderToken(tok) {
+        const chip = document.createElement('span');
+        chip.className = 'enc-tok enc-tok-' + tok.type;
+        const glyph = document.createElement('span');
+        glyph.className = 'enc-tok-glyph';
+        const sub = document.createElement('span');
+        sub.className = 'enc-tok-sub';
+        if (tok.type === 'syl') {
+            const text = window.TibetanEncoder.decodeTokens([tok]); // kind 感知：n/t/r 均可解码
+            const kind = tok.kind || 'n';
+            glyph.textContent = text;
+            sub.textContent = kind + ' [' + tok.slots.join(',') + ']';
+            chip.title = 'syl#' + kind + ' · ' + text + ' · slots [' + tok.slots.join(', ') + ']';
+        } else if (tok.type === 'punc') {
+            const ch = window.TibetanEncoder.decodePunctId(tok.id);
+            glyph.textContent = (ch === ' ') ? '␣' : ch;
+            sub.textContent = 'punc#' + tok.id;
+            chip.title = 'punc · id=' + tok.id + ' · U+' + ch.codePointAt(0).toString(16).toUpperCase();
+        } else {
+            const str = String(tok.str);
+            glyph.textContent = (str === '') ? '∅' : str;
+            sub.textContent = 'foreign';
+            chip.title = 'foreign · ' + JSON.stringify(str);
+        }
+        chip.appendChild(glyph);
+        chip.appendChild(sub);
+        return chip;
+    }
+
+    async function runEncoder() {
+        const text = encInputEl.value;
+        if (!text) {
+            encBadgeEl.className = 'result-badge idle';
+            encBadgeEl.textContent = T('enc.await');
+            encOutputEl.style.display = 'none';
+            encPushLog([T('enc.awaitLog')]);
+            return;
+        }
+        await Promise.all([ensureTibetanData(), ensureI18n()]);
+        if (!tibetanData) {
+            encBadgeEl.className = 'result-badge invalid';
+            encBadgeEl.textContent = T('enc.dataFail');
+            return;
+        }
+        try {
+            window.TibetanEncoder.initEncoder(tibetanData); // 幂等，重复调用安全
+
+            const t0 = performance.now();
+            const tokens = window.TibetanEncoder.encodeText(text);
+            const msEncode = performance.now() - t0;
+            const t1 = performance.now();
+            const back = window.TibetanEncoder.decodeTokens(tokens);
+            const msDecode = performance.now() - t1;
+            const roundTrip = (back === text);
+
+            encBadgeEl.className = 'result-badge ' + (roundTrip ? 'valid' : 'invalid');
+            encBadgeEl.textContent = roundTrip
+                ? T('enc.roundtripOk', { n: tokens.length, ms: (msEncode + msDecode).toFixed(2) })
+                : T('enc.roundtripFail');
+
+            const counts = { syl: 0, punc: 0, foreign: 0 };
+            tokens.forEach(t => counts[t.type]++);
+            document.getElementById('encTokCount').textContent = tokens.length;
+            document.getElementById('encSylCount').textContent = counts.syl;
+            document.getElementById('encPuncCount').textContent = counts.punc;
+            document.getElementById('encForeignCount').textContent = counts.foreign;
+            document.getElementById('encTime').textContent = msEncode.toFixed(2) + 'ms';
+
+            encTokenFlowEl.innerHTML = '';
+            const frag = document.createDocumentFragment();
+            tokens.slice(0, ENC_VIEW_CAP).forEach(t => frag.appendChild(encRenderToken(t)));
+            encTokenFlowEl.appendChild(frag);
+            encTruncNoteEl.style.display = tokens.length > ENC_VIEW_CAP ? 'block' : 'none';
+            if (tokens.length > ENC_VIEW_CAP) {
+                encTruncNoteEl.textContent = T('enc.truncated', { n: ENC_VIEW_CAP, total: tokens.length });
+            }
+            encJsonEl.textContent = JSON.stringify(tokens, null, 2);
+            encOutputEl.style.display = 'block';
+
+            encPushLog([
+                T('enc.logInput') + ' ' + JSON.stringify(text),
+                T('enc.logTokens') + ' ' + tokens.length + ' (' +
+                    counts.syl + ' syl / ' + counts.punc + ' punc / ' + counts.foreign + ' foreign)',
+                T('enc.logEncode') + ' ' + msEncode.toFixed(3) + ' ms · ' +
+                    T('enc.logDecode') + ' ' + msDecode.toFixed(3) + ' ms',
+                roundTrip
+                    ? '✅ ' + T('enc.logOk')
+                    : '❌ ' + T('enc.logFail') + ' ' + JSON.stringify(back)
+            ]);
+        } catch (err) {
+            console.error('Encoder error:', err);
+            encBadgeEl.className = 'result-badge invalid';
+            encBadgeEl.textContent = '❌ ' + (err && err.message ? err.message : err);
+            encPushLog(['❌ ' + (err && err.message ? err.message : err)]);
+        }
+    }
+
+    // 内置自检：decode(encode(t)) === t + 少量结构断言（与 test_encoder.js 同思路）
+    async function runEncSelfCheck() {
+        await Promise.all([ensureTibetanData(), ensureI18n()]);
+        if (!tibetanData) {
+            encBadgeEl.className = 'result-badge invalid';
+            encBadgeEl.textContent = T('enc.dataFail');
+            return;
+        }
+        const E = window.TibetanEncoder;
+        E.initEncoder(tibetanData);
+        encBadgeEl.className = 'result-badge idle';
+        encBadgeEl.textContent = T('enc.selfRunning');
+
+        const lines = [];
+        let passed = 0, failed = 0;
+        const report = (okCase, label, detail) => {
+            if (okCase) { passed++; lines.push('✅ ' + label + (detail ? '  ' + detail : '')); }
+            else { failed++; lines.push('❌ ' + label + (detail ? '  ' + detail : '')); }
+        };
+        try {
+            // 1) 往返不变量
+            ENC_SAMPLE_TEXTS.forEach((t, i) => {
+                let okCase = false, detail = '';
+                try {
+                    okCase = E.decodeTokens(E.encodeText(t)) === t;
+                } catch (e) { detail = (e && e.message ? e.message : e); }
+                report(okCase, '[' + (i + 1) + '] ' + T('enc.selfRoundtrip') + ' ' + JSON.stringify(t), detail);
+            });
+            // 空字符串
+            report(E.decodeTokens(E.encodeText('')) === '',
+                '[' + (ENC_SAMPLE_TEXTS.length + 1) + '] ' + T('enc.selfRoundtrip') + ' ""');
+
+            // 2) 结构断言
+            const puncIds = s => E.encodeText(s).filter(x => x.type === 'punc').map(x => x.id);
+            report(JSON.stringify(puncIds('།་༎')) === JSON.stringify([1, 0, 2]),
+                T('enc.selfStruct') + ' །་༎ → punc ids [1,0,2]');
+            const phrase = E.encodeText('བོད་ཀྱི་སྐད་ཡིག');
+            report(phrase.length === 7 && JSON.stringify(puncIds('བོད་ཀྱི་སྐད་ཡིག')) === JSON.stringify([0, 0, 0]),
+                T('enc.selfStruct') + ' བོད་ཀྱི་སྐད་ཡིག → 7 tokens, tsheg ids [0,0,0]');
+            const sk = E.encodeSyllable('སྐབས');
+            report(sk && sk[1] > 0 && sk[2] === 1 && E.decodeFromSlots(sk) === 'སྐབས',
+                T('enc.selfStruct') + ' སྐབས 变体基字 ྐ→ཀ(槽2=1) 且上加字占槽1');
+            report(E.encodeSyllable('ཀྵ') === null, T('enc.selfStruct') + ' ཀྵ → encodeSyllable null（native API；文本级由 kind=t 入槽）');
+            report(E.decodePunctId(5) === ' ', T('enc.selfStruct') + ' punc id 5 = 空格');
+        } catch (err) {
+            report(false, 'unexpected', (err && err.message ? err.message : err));
+        }
+
+        const total = passed + failed;
+        encBadgeEl.className = 'result-badge ' + (failed === 0 ? 'valid' : 'invalid');
+        encBadgeEl.textContent = failed === 0
+            ? T('enc.selfOk', { p: passed, n: total })
+            : T('enc.selfFail', { p: passed, n: total });
+        encPushLog(lines);
+    }
+
+    // 示例文本按钮
+    const encSamplesEl = document.getElementById('encSamples');
+    ENC_SAMPLE_TEXTS.forEach(text => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'enc-sample';
+        b.textContent = text;
+        b.title = T('enc.samplesTip');
+        b.addEventListener('click', () => {
+            encInputEl.value = text;
+            runEncoder();
+        });
+        encSamplesEl.appendChild(b);
+    });
+
+    document.getElementById('encRunBtn').addEventListener('click', runEncoder);
+    document.getElementById('encSelfBtn').addEventListener('click', runEncSelfCheck);
+    document.getElementById('encClearBtn').addEventListener('click', () => {
+        encInputEl.value = '';
+        encBadgeEl.className = 'result-badge idle';
+        encBadgeEl.textContent = T('enc.await');
+        encOutputEl.style.display = 'none';
+        encPushLog([T('enc.awaitLog')]);
+    });
+    encInputEl.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runEncoder();
+    });
+    // 打开页面即演示：预置一段混合文本并自动编码（内部会等待数据就绪）
+    encInputEl.value = 'བོད་ཀྱི་སྐད་ཡིག་དང་ 2024ལོར་Hello། སྤྲེའུའི';
+    runEncoder();
+
+    // ============ 7. Language switching ============
+    document.getElementById('langSelect').addEventListener('change', (e) => {
+        window.TibetanI18n.setLang(e.target.value);
+        applyLang();
+        // Refresh the current check so badge + log follow the new language
+        checkSingle();
+        // Visualizer legend + labels are built dynamically — rebuild after the switch
+        buildVizLegend();
+        // Nine-grid badge text is dynamic — re-render so it follows the new language too
+        renderNineOutput();
+    });
+
+    // ============ 8. Init ============
+    document.addEventListener('DOMContentLoaded', async () => {
+        await ensureI18n();
+        applyLang();
+        await ensureTibetanData();
+        buildVizLegend();
+        await checkSingle();
+        // Nine-grid IME: seed a greeting so the tab is demoable on first open,
+        // and prepare the validation data for the live badge.
+        nineOutput = 'བཀྲ་ཤིས་';
+        if (tibetanData) ninePrepared = window.TibetanAlgorithm.prepareData(tibetanData);
+        renderNineCompose();
+        renderNineOutput();
+    });
+})();
+</script>
+</body>
+</html>
