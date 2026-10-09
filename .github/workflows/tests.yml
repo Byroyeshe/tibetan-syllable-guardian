@@ -1,0 +1,99 @@
+name: tests
+
+# 为什么只有两个 job 而不做矩阵：这个引擎是**零依赖纯 JavaScript**，
+# 不装任何东西（连 npm install 都不需要），所以除了 Node 版本之外没有变量。
+# 装一堆矩阵只会让"绿"变得不可读。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: engine tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # LTS 两端取齐：18（旧环境仍可用）与 22（当前 LTS）
+        node: ['18', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: No dependencies to install
+        run: echo "zero dependencies — nothing to install"
+
+      - name: Round-trip and quality tests (35 assertions)
+        run: node test_encoder.js
+
+      - name: Encoder semantics tests (7 assertions)
+        run: node test_encoder_v2.js
+
+  assets:
+    name: shipped assets are intact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 这一组检查的是"仓库里承诺的东西是不是真在、真能用"。
+      # 它的价值在于：这类问题本地跑测试**查不出来**（HTML 引的字体缺失、
+      # 字体文件其实是个 404 页面、OFL 许可忘了带 —— 全都是静态资源问题）。
+      - name: The page's local dependencies all exist
+        run: |
+          set -e
+          missing=0
+          for f in $(grep -oE '<script[^>]*src="[^"]+"' Tibetan_Test_Suite.html \
+                     | sed -E 's/.*src="([^"]+)"/\1/' | grep -v '^http'); do
+            if [ ! -f "$f" ]; then echo "MISSING script: $f"; missing=1; fi
+          done
+          for f in $(grep -oE "url\('[^']+'\)" Tibetan_Test_Suite.html \
+                     | sed -E "s/url\('([^']+)'\)/\1/" | grep -v '^http'); do
+            if [ ! -f "$f" ]; then echo "MISSING url(): $f"; missing=1; fi
+          done
+          [ "$missing" -eq 0 ] && echo "all local dependencies present"
+          exit $missing
+
+      - name: Bundled font is a real woff2, and its license travels with it
+        run: |
+          set -e
+          font="fonts/NotoSerifTibetan-Bold.woff2"
+          test -f "$font" || { echo "font missing: $font"; exit 1; }
+          magic=$(head -c 4 "$font")
+          [ "$magic" = "wOF2" ] || { echo "not a woff2 (magic: $magic)"; exit 1; }
+          echo "font ok: $(wc -c < "$font") bytes"
+          # OFL-1.1 要求随附许可证全文
+          ls fonts/ | grep -qiE 'OFL|LICENSE|COPYING' || { echo "no font license in fonts/"; exit 1; }
+          echo "font license present"
+
+      - name: start_server.py answers and serves the right MIME types
+        run: |
+          set -e
+          # 用 python3：ubuntu-latest 上没有 `python` 这个别名
+          python3 start_server.py 8099 &
+          SRV=$!
+          for i in $(seq 1 20); do
+            curl -sf -o /dev/null "http://127.0.0.1:8099/Tibetan_Test_Suite.html" && break
+            sleep 0.5
+          done
+          for f in Tibetan_Test_Suite.html tibetan_data.json ui_texts.json \
+                   fonts/NotoSerifTibetan-Bold.woff2; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8099/$f")
+            echo "$code  $f"
+            [ "$code" = "200" ] || { echo "expected 200 for $f"; kill $SRV; exit 1; }
+          done
+          # 字体必须是 font/woff2 —— 类型错了浏览器会拒绝加载
+          ctype=$(curl -s -o /dev/null -w '%{content_type}' \
+                  "http://127.0.0.1:8099/fonts/NotoSerifTibetan-Bold.woff2")
+          echo "font content-type: $ctype"
+          echo "$ctype" | grep -qi 'woff2' || { echo "wrong content-type"; kill $SRV; exit 1; }
+          kill $SRV

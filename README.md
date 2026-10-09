@@ -7,6 +7,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Commercial license available](https://img.shields.io/badge/License-Commercial-orange.svg)](LICENSE-COMMERCIAL.md)
+[![tests](https://github.com/sonamzade/tibetan-syllable-guardian/actions/workflows/tests.yml/badge.svg)](https://github.com/sonamzade/tibetan-syllable-guardian/actions/workflows/tests.yml)
 [![Latest release](https://img.shields.io/github/v/release/sonamzade/tibetan-syllable-guardian)](https://github.com/sonamzade/tibetan-syllable-guardian/releases)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](#performance--性能)
 
